@@ -11,7 +11,13 @@ export interface Individual {
   seed: number;
 }
 
-export type Participant = Individual | Team;
+export interface PlacholderParticipant {
+  id: string;
+  name: string;
+  type: "winner" | "loser" | "wildcard";
+  seed: number;
+}
+export type Participant = Individual | Team | PlacholderParticipant;
 
 export interface Match {
   id: string;
@@ -41,7 +47,7 @@ export interface Stage {
   format: "round-robin" | "single-elimination";
   sequence: number;
   pools: Pool[];
-  qualifiers: number
+  qualifiers: number;
 }
 
 export interface Track {
@@ -49,7 +55,7 @@ export interface Track {
   name: string;
   participants: Participant[];
   stages: Stage[];
-  type: 'individual' | 'team';
+  type: "individual" | "team";
 }
 
 export interface Tournament {
