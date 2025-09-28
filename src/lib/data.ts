@@ -53,12 +53,12 @@ export const tournamentFixture: Tournament = {
         },
         {
             id: "ind-009",
-            name: "Alex Wilson",
+            name: "King albon",
             seed: 9
         },  
         {
             id: "ind-010",
-            name: "Lisa Brown",
+            name: "Chris Brown",
             seed: 10
         }
       ],
