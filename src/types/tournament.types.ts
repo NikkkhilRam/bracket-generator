@@ -2,6 +2,7 @@ export interface Team {
   id: string;
   name: string;
   seed: number;
+  type: "team";
   members: [Individual, Individual];
 }
 
@@ -9,12 +10,13 @@ export interface Individual {
   id: string;
   name: string;
   seed: number;
+  type: "individual";
 }
 
 export interface PlacholderParticipant {
   id: string;
   name: string;
-  type: "winner" | "loser" | "wildcard";
+  type: "winner" | "loser" | "wildcard" |"placeholder";
   seed: number;
 }
 export type Participant = Individual | Team | PlacholderParticipant;

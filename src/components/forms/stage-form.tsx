@@ -16,15 +16,15 @@ import { getFormatByName, getStageParticipantCount } from "@/services";
 interface StageFormProps {
   onCancel: () => void;
   onSubmit: (stage: Stage) => void;
-  track: Track; // Added to get participant context
-  stageIndex: number; // Position of this stage in the sequence
+  track: Track;
+  stageIndex: number;
 }
 
-const StageForm: React.FC<StageFormProps> = ({ 
-  onCancel, 
-  onSubmit, 
-  track, 
-  stageIndex 
+const StageForm: React.FC<StageFormProps> = ({
+  onCancel,
+  onSubmit,
+  track,
+  stageIndex,
 }) => {
   const [name, setName] = useState("");
   const [format, setFormat] = useState<"single-elimination" | "round-robin">(
@@ -32,21 +32,19 @@ const StageForm: React.FC<StageFormProps> = ({
   );
   const [qualifiers, setQualifiers] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  
-  // Calculate participants for this stage
+
   const participantCount = getStageParticipantCount(track, stageIndex);
-  
-  // Get format service and validation info
+
   const service = getFormatByName(format);
   const validRange = service?.getValidQualifierRange(participantCount);
 
   useEffect(() => {
-    // Reset qualifiers when format changes and validate
     if (service) {
-      const newQualifiers = format === "single-elimination" 
-        ? (validRange?.validValues?.[0] || 1)
-        : Math.min(qualifiers, participantCount);
-      
+      const newQualifiers =
+        format === "single-elimination"
+          ? validRange?.validValues?.[0] || 1
+          : Math.min(qualifiers, participantCount);
+
       setQualifiers(newQualifiers);
       validateQualifiers(newQualifiers);
     }
@@ -90,7 +88,6 @@ const StageForm: React.FC<StageFormProps> = ({
 
   const renderQualifierInput = () => {
     if (format === "single-elimination" && validRange?.validValues) {
-      // For single elimination, show dropdown with valid power-of-2 options
       return (
         <Select
           value={qualifiers.toString()}
@@ -110,7 +107,6 @@ const StageForm: React.FC<StageFormProps> = ({
       );
     }
 
-    // For round robin, show number input
     return (
       <Input
         type="number"
@@ -128,7 +124,8 @@ const StageForm: React.FC<StageFormProps> = ({
       <CardHeader>
         <CardTitle className="text-lg">Add Stage {stageIndex + 1}</CardTitle>
         <p className="text-sm text-muted-foreground">
-          This stage will have {participantCount} participant{participantCount !== 1 ? 's' : ''}
+          This stage will have {participantCount} participant
+          {participantCount !== 1 ? "s" : ""}
           {stageIndex > 0 && ` (qualified from previous stage)`}
         </p>
       </CardHeader>
@@ -174,9 +171,7 @@ const StageForm: React.FC<StageFormProps> = ({
               )}
             </label>
             {renderQualifierInput()}
-            {error && (
-              <p className="text-sm text-red-500">{error}</p>
-            )}
+            {error && <p className="text-sm text-red-500">{error}</p>}
             {format === "round-robin" && (
               <p className="text-xs text-muted-foreground">
                 Range: {validRange?.min} - {validRange?.max}

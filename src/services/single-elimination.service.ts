@@ -175,6 +175,7 @@ export class SingleEliminationService implements FormatService {
           matches[i].party1?.seed || 999,
           matches[i].party2?.seed || 999
         ),
+        type: "placeholder"
       };
       participants.push(placeholderParticipant);
     }

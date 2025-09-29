@@ -15,52 +15,74 @@ export const tournamentFixture: Tournament = {
           id: "ind-001",
           name: "John Smith",
           seed: 1,
+          type: "individual",
         },
         {
           id: "ind-002",
           name: "Sarah Johnson",
           seed: 2,
+          type: "individual",
         },
         {
           id: "ind-003",
           name: "Mike Chen",
           seed: 3,
+          type: "individual",
         },
         {
           id: "ind-004",
           name: "Emma Davis",
           seed: 4,
+          type: "individual",
         },
         {
           id: "ind-005",
           name: "Alex Wilson",
           seed: 5,
+          type: "individual",
         },
         {
           id: "ind-006",
           name: "Lisa Brown",
           seed: 6,
+          type: "individual",
         },
         {
-            id: "ind-007",
-            name: "Jessica Red",
-            seed: 7
+          id: "ind-007",
+          name: "Jessica Red",
+          seed: 7,
+          type: "individual",
         },
         {
-            id: "ind-008",
-            name: "Amanda Silver",
-            seed: 8
+          id: "ind-008",
+          name: "Amanda Silver",
+          seed: 8,
+          type: "individual",
         },
         {
-            id: "ind-009",
-            name: "King albon",
-            seed: 9
-        },  
+          id: "ind-009",
+          name: "King albon",
+          seed: 9,
+          type: "individual",
+        },
         {
-            id: "ind-010",
-            name: "Chris Brown",
-            seed: 10
-        }
+          id: "ind-010",
+          name: "Chris Brown",
+          seed: 10,
+          type: "individual",
+        },
+        {
+          id: "ind-011",
+          name: "James Brown",
+          seed: 11,
+          type: "individual",
+        },
+        {
+          id: "ind-012",
+          name: "Michael Brown",
+          seed: 12,
+          type: "individual",
+        },
       ],
       stages: [],
     },
@@ -73,16 +95,19 @@ export const tournamentFixture: Tournament = {
           id: "team-001",
           name: "Thunder Hawks",
           seed: 1,
+          type: "team",
           members: [
             {
               id: "player-001",
               name: "David Miller",
               seed: 1,
+              type: "individual",
             },
             {
               id: "player-002",
               name: "Tom Anderson",
               seed: 2,
+              type: "individual",
             },
           ],
         },
@@ -90,16 +115,19 @@ export const tournamentFixture: Tournament = {
           id: "team-002",
           name: "Lightning Bolts",
           seed: 2,
+          type: "team",
           members: [
             {
               id: "player-003",
               name: "Rachel Green",
               seed: 1,
+              type: "individual",
             },
             {
               id: "player-004",
               name: "Monica Blue",
               seed: 2,
+              type: "individual",
             },
           ],
         },
@@ -107,16 +135,19 @@ export const tournamentFixture: Tournament = {
           id: "team-003",
           name: "Fire Dragons",
           seed: 3,
+          type: "team",
           members: [
             {
               id: "player-005",
               name: "Kevin White",
               seed: 1,
+              type: "individual",
             },
             {
               id: "player-006",
               name: "Steve Black",
               seed: 2,
+              type: "individual",
             },
           ],
         },
@@ -124,16 +155,19 @@ export const tournamentFixture: Tournament = {
           id: "team-004",
           name: "Ice Panthers",
           seed: 4,
+          type: "team",
           members: [
             {
               id: "player-007",
               name: "Jessica Red",
               seed: 1,
+              type: "individual",
             },
             {
               id: "player-008",
               name: "Amanda Silver",
               seed: 2,
+              type: "individual",
             },
           ],
         },

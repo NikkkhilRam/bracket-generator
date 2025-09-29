@@ -24,22 +24,22 @@ interface TrackViewProps {
   setSelectedTrack: (track: Track) => void;
 }
 
-const TrackView: React.FC<TrackViewProps> = ({ 
-  callback, 
-  selectedTrack, 
-  setSelectedTrack 
+const TrackView: React.FC<TrackViewProps> = ({
+  callback,
+  selectedTrack,
+  setSelectedTrack,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  
-  // Form state
+
   const [name, setName] = useState("");
-  const [format, setFormat] = useState<"single-elimination" | "round-robin">("single-elimination");
+  const [format, setFormat] = useState<"single-elimination" | "round-robin">(
+    "single-elimination"
+  );
   const [qualifiers, setQualifiers] = useState(0);
   const [poolCount, setPoolCount] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  
-  // Round Robin specific states
+
   const [roundRobinService] = useState(new RoundRobinService());
   const [poolDistribution, setPoolDistribution] = useState<number[]>([]);
   const [poolValidation, setPoolValidation] = useState<{
@@ -47,16 +47,18 @@ const TrackView: React.FC<TrackViewProps> = ({
     errors: string[];
     warnings: string[];
   }>({ valid: true, errors: [], warnings: [] });
-  
-  // Validate current stage sequence
+
   React.useEffect(() => {
-    const validation = validateStageSequence(selectedTrack.stages, selectedTrack);
+    const validation = validateStageSequence(
+      selectedTrack.stages,
+      selectedTrack
+    );
     setValidationErrors(validation.errors);
   }, [selectedTrack.stages]);
 
   const handleAddStage = () => {
     setShowForm(true);
-    // Reset form
+
     setName("");
     setFormat("single-elimination");
     setQualifiers(0);
@@ -78,35 +80,43 @@ const TrackView: React.FC<TrackViewProps> = ({
     } else {
       const previousStage = selectedTrack.stages[stageIndex - 1];
       const qualifiers = previousStage.qualifiers;
-      
+
       const placeholderParticipants: Participant[] = [];
       for (let i = 0; i < qualifiers; i++) {
         placeholderParticipants.push({
           id: `placeholder-stage-${stageIndex}-${i + 1}`,
           name: `Qualifier ${i + 1} from ${previousStage.name}`,
           seed: i + 1,
+          type: "placeholder",
         });
       }
-      
+
       return placeholderParticipants;
     }
   };
 
-  // Calculate participants for current stage being created
-  const participantCount = getStageParticipantCount(selectedTrack, selectedTrack.stages.length);
+  const participantCount = getStageParticipantCount(
+    selectedTrack,
+    selectedTrack.stages.length
+  );
 
-  // Update pool distribution and validation for round robin
   useEffect(() => {
     if (format === "round-robin" && showForm) {
-      const distribution = roundRobinService.getPoolDistribution(participantCount, poolCount);
+      const distribution = roundRobinService.getPoolDistribution(
+        participantCount,
+        poolCount
+      );
       setPoolDistribution(distribution);
-      
-      const validation = roundRobinService.validatePoolSetup(participantCount, poolCount);
+
+      const validation = roundRobinService.validatePoolSetup(
+        participantCount,
+        poolCount
+      );
       setPoolValidation(validation);
 
-      // Initialize pool count when switching to round robin
       if (poolCount === 1) {
-        const defaultPoolCount = roundRobinService.getDefaultPoolCount(participantCount);
+        const defaultPoolCount =
+          roundRobinService.getDefaultPoolCount(participantCount);
         setPoolCount(defaultPoolCount);
       }
     }
@@ -114,19 +124,21 @@ const TrackView: React.FC<TrackViewProps> = ({
 
   const validateQualifiers = (value: number) => {
     if (format === "single-elimination") {
-      // Check if it's a power of 2
       const isPowerOf2 = value > 0 && (value & (value - 1)) === 0;
       if (!isPowerOf2 || value > participantCount) {
-        setError("Qualifiers must be a power of 2 and not exceed participant count");
+        setError(
+          "Qualifiers must be a power of 2 and not exceed participant count"
+        );
       } else {
         setError(null);
       }
     } else {
-      // Round robin validation
       if (value < 0) {
         setError("Qualifiers cannot be negative");
       } else if (value > participantCount) {
-        setError(`Qualifiers cannot exceed ${participantCount} (total participants in this stage)`);
+        setError(
+          `Qualifiers cannot exceed ${participantCount} (total participants in this stage)`
+        );
       } else {
         setError(null);
       }
@@ -138,7 +150,6 @@ const TrackView: React.FC<TrackViewProps> = ({
 
     if (error) return;
 
-    // Additional validation for round robin pools
     if (format === "round-robin" && !poolValidation.valid) {
       setError(poolValidation.errors.join(", "));
       return;
@@ -146,7 +157,7 @@ const TrackView: React.FC<TrackViewProps> = ({
 
     const stageIndex = selectedTrack.stages.length;
     const stageParticipants = getStageParticipants(stageIndex);
-    
+
     const newStage: Stage = {
       id: crypto.randomUUID(),
       name,
@@ -158,18 +169,22 @@ const TrackView: React.FC<TrackViewProps> = ({
     };
 
     let pools: Pool[] = [];
-    
+
     if (newStage.format === "single-elimination") {
       const service = new SingleEliminationService();
       pools = service.generatePools(stageParticipants, newStage.qualifiers);
-      
-      console.log('Generated single elimination pools:', pools);
+
+      console.log("Generated single elimination pools:", pools);
     } else if (newStage.format === "round-robin") {
       const service = new RoundRobinService();
-      pools = service.generatePools(stageParticipants, newStage.qualifiers, poolCount);
-      
-      console.log('Generated round robin pools:', pools);
-      console.log('Pool count:', poolCount);
+      pools = service.generatePools(
+        stageParticipants,
+        newStage.qualifiers,
+        poolCount
+      );
+
+      console.log("Generated round robin pools:", pools);
+      console.log("Pool count:", poolCount);
     }
 
     newStage.pools = pools;
@@ -196,7 +211,7 @@ const TrackView: React.FC<TrackViewProps> = ({
 
   const canAddStage = () => {
     if (selectedTrack.stages.length === 0) return true;
-    
+
     const lastStage = selectedTrack.stages[selectedTrack.stages.length - 1];
     return lastStage.qualifiers > 1;
   };
@@ -321,7 +336,7 @@ const TrackView: React.FC<TrackViewProps> = ({
       <Button variant="outline" onClick={callback}>
         Back to Tracks
       </Button>
-      
+
       <Card className="shadow-md gap-0">
         <CardHeader>
           <CardTitle className="text-xl">{selectedTrack.name}</CardTitle>
@@ -343,7 +358,9 @@ const TrackView: React.FC<TrackViewProps> = ({
               <p className="font-medium">Validation Issues:</p>
               <ul className="list-disc list-inside space-y-1">
                 {validationErrors.map((error, index) => (
-                  <li key={index} className="text-sm">{error}</li>
+                  <li key={index} className="text-sm">
+                    {error}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -355,90 +372,129 @@ const TrackView: React.FC<TrackViewProps> = ({
         const participantCount = getStageParticipantCount(selectedTrack, index);
         return (
           <div key={stage.id} className="space-y-2">
-            <StageView 
-              stage={stage} 
+            <StageView
+              stage={stage}
               participantCount={participantCount}
               stageNumber={index + 1}
             />
-            
+
             {/* Display bracket information for single elimination */}
-            {stage.format === "single-elimination" && stage.pools.length > 0 && (
-              <Card className="bg-gray-50">
-                <CardHeader>
-                  <CardTitle className="text-md">Bracket Structure</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {stage.pools[0].rounds.map((round, roundIndex) => (
-                    <div key={round.id} className="space-y-2">
-                      <h4 className="font-medium text-sm">Round {roundIndex + 1}</h4>
-                      
-                      {/* Display byes if any */}
-                      {round.byes.length > 0 && (
-                        <div className="text-xs text-muted-foreground">
-                          <p>Byes: {round.byes.map(bye => bye.name).join(", ")}</p>
-                        </div>
-                      )}
-                      
-                      {/* Display matches */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {round.matches.map((match) => (
-                          <div key={match.id} className="border rounded p-2 text-xs">
-                            <div className="flex justify-between items-center">
-                              <span className="truncate">{match.party1?.name || "TBD"}</span>
-                              <span className="text-muted-foreground">vs</span>
-                              <span className="truncate">{match.party2?.name || "TBD"}</span>
-                            </div>
-                            {match.winner && (
-                              <div className="text-center mt-1 text-green-600 font-medium">
-                                Winner: {match.winner.name}
-                              </div>
-                            )}
+            {stage.format === "single-elimination" &&
+              stage.pools.length > 0 && (
+                <Card className="bg-gray-50">
+                  <CardHeader>
+                    <CardTitle className="text-md">Bracket Structure</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {stage.pools[0].rounds.map((round, roundIndex) => (
+                      <div key={round.id} className="space-y-2">
+                        <h4 className="font-medium text-sm">
+                          Round {roundIndex + 1}
+                        </h4>
+
+                        {/* Display byes if any */}
+                        {round.byes.length > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            <p>
+                              Byes:{" "}
+                              {round.byes.map((bye) => bye.name).join(", ")}
+                            </p>
                           </div>
-                        ))}
+                        )}
+
+                        {/* Display matches */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {round.matches.map((match) => (
+                            <div
+                              key={match.id}
+                              className="border rounded p-2 text-xs"
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="truncate">
+                                  {match.party1?.name || "TBD"}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  vs
+                                </span>
+                                <span className="truncate">
+                                  {match.party2?.name || "TBD"}
+                                </span>
+                              </div>
+                              {match.winner && (
+                                <div className="text-center mt-1 text-green-600 font-medium">
+                                  Winner: {match.winner.name}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
             {/* Display pool information for round robin */}
             {stage.format === "round-robin" && stage.pools.length > 0 && (
               <Card className="bg-blue-50">
                 <CardHeader>
-                  <CardTitle className="text-md">Round Robin Pools ({stage.pools.length} pools)</CardTitle>
+                  <CardTitle className="text-md">
+                    Round Robin Pools ({stage.pools.length} pools)
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {stage.pools.map((pool, poolIndex) => (
-                    <div key={pool.id} className="border rounded-lg p-3 bg-white">
-                      <h4 className="font-medium text-sm mb-2">{pool.name} ({pool.parties.length} participants)</h4>
-                      
+                    <div
+                      key={pool.id}
+                      className="border rounded-lg p-3 bg-white"
+                    >
+                      <h4 className="font-medium text-sm mb-2">
+                        {pool.name} ({pool.parties.length} participants)
+                      </h4>
+
                       {/* Pool participants */}
                       <div className="text-xs text-muted-foreground mb-3">
-                        <p>Participants: {pool.parties.map(p => p.name).join(", ")}</p>
+                        <p>
+                          Participants:{" "}
+                          {pool.parties.map((p) => p.name).join(", ")}
+                        </p>
                       </div>
 
                       {/* Pool rounds and matches */}
                       <div className="space-y-2">
                         {pool.rounds.map((round, roundIndex) => (
                           <div key={round.id} className="space-y-1">
-                            <h5 className="font-medium text-xs">Round {roundIndex + 1}</h5>
-                            
+                            <h5 className="font-medium text-xs">
+                              Round {roundIndex + 1}
+                            </h5>
+
                             {/* Display byes if any */}
                             {round.byes.length > 0 && (
                               <div className="text-xs text-orange-600 mb-1">
-                                <p>Bye: {round.byes.map(bye => bye.name).join(", ")}</p>
+                                <p>
+                                  Bye:{" "}
+                                  {round.byes.map((bye) => bye.name).join(", ")}
+                                </p>
                               </div>
                             )}
-                            
+
                             {/* Display matches */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                               {round.matches.map((match) => (
-                                <div key={match.id} className="border rounded p-2 text-xs bg-gray-50">
+                                <div
+                                  key={match.id}
+                                  className="border rounded p-2 text-xs bg-gray-50"
+                                >
                                   <div className="flex justify-between items-center">
-                                    <span className="truncate">{match.party1?.name || "TBD"}</span>
-                                    <span className="text-muted-foreground">vs</span>
-                                    <span className="truncate">{match.party2?.name || "TBD"}</span>
+                                    <span className="truncate">
+                                      {match.party1?.name || "TBD"}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      vs
+                                    </span>
+                                    <span className="truncate">
+                                      {match.party2?.name || "TBD"}
+                                    </span>
                                   </div>
                                   {match.winner && (
                                     <div className="text-center mt-1 text-green-600 font-medium">
@@ -464,10 +520,14 @@ const TrackView: React.FC<TrackViewProps> = ({
       {showForm ? (
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="text-lg">Add Stage {selectedTrack.stages.length + 1}</CardTitle>
+            <CardTitle className="text-lg">
+              Add Stage {selectedTrack.stages.length + 1}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              This stage will have {participantCount} participant{participantCount !== 1 ? 's' : ''}
-              {selectedTrack.stages.length > 0 && ` (qualified from previous stage)`}
+              This stage will have {participantCount} participant
+              {participantCount !== 1 ? "s" : ""}
+              {selectedTrack.stages.length > 0 &&
+                ` (qualified from previous stage)`}
             </p>
           </CardHeader>
           <CardContent>
@@ -515,9 +575,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                   )}
                 </label>
                 {renderQualifierInput()}
-                {error && (
-                  <p className="text-sm text-red-500">{error}</p>
-                )}
+                {error && <p className="text-sm text-red-500">{error}</p>}
                 {format === "round-robin" && (
                   <p className="text-xs text-muted-foreground">
                     Range: 0 - {participantCount}
@@ -529,9 +587,13 @@ const TrackView: React.FC<TrackViewProps> = ({
                 <Button type="button" variant="outline" onClick={handleCancel}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  disabled={!!error || !name.trim() || (format === "round-robin" && !poolValidation.valid)}
+                <Button
+                  type="submit"
+                  disabled={
+                    !!error ||
+                    !name.trim() ||
+                    (format === "round-robin" && !poolValidation.valid)
+                  }
                 >
                   Save
                 </Button>
@@ -554,7 +616,12 @@ const TrackView: React.FC<TrackViewProps> = ({
             </>
           ) : (
             <div className="text-sm text-muted-foreground">
-              <p>Cannot add more stages - previous stage qualifies only {selectedTrack.stages[selectedTrack.stages.length - 1]?.qualifiers || 0} participant(s)</p>
+              <p>
+                Cannot add more stages - previous stage qualifies only{" "}
+                {selectedTrack.stages[selectedTrack.stages.length - 1]
+                  ?.qualifiers || 0}{" "}
+                participant(s)
+              </p>
             </div>
           )}
         </div>
