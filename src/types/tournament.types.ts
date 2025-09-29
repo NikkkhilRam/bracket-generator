@@ -50,6 +50,7 @@ export interface Stage {
   sequence: number;
   pools: Pool[];
   qualifiers: number;
+  wildcards: Participant[];
 }
 
 export interface Track {
@@ -58,6 +59,7 @@ export interface Track {
   participants: Participant[];
   stages: Stage[];
   type: "individual" | "team";
+  wildcards: Participant[];
 }
 
 export interface Tournament {

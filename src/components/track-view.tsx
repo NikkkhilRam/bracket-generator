@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "./ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TrackViewProps {
   callback: () => void;
@@ -40,6 +41,7 @@ const TrackView: React.FC<TrackViewProps> = ({
   const [qualifiers, setQualifiers] = useState(0);
   const [poolCount, setPoolCount] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [selectedWildcards, setSelectedWildcards] = useState<string[]>([]);
 
   const [roundRobinService] = useState(new RoundRobinService());
   const [poolDistribution, setPoolDistribution] = useState<number[]>([]);
@@ -59,21 +61,18 @@ const TrackView: React.FC<TrackViewProps> = ({
 
   const handleAddStage = () => {
     setShowForm(true);
-
     setName("");
     setFormat("single-elimination");
     setQualifiers(0);
     setPoolCount(1);
     setError(null);
+    setSelectedWildcards([]);
   };
 
   const handleCancel = () => {
     setShowForm(false);
+    setSelectedWildcards([]);
   };
-
-  useEffect(() => {
-    console.log(selectedTrack);
-  }, [selectedTrack]);
 
   const getStageParticipants = (stageIndex: number): Participant[] => {
     if (stageIndex === 0) {
@@ -96,37 +95,45 @@ const TrackView: React.FC<TrackViewProps> = ({
     }
   };
 
+  const getAvailableWildcards = () => {
+    const usedWildcardIds = new Set<string>();
+    
+    selectedTrack.stages.forEach(stage => {
+      stage.wildcards.forEach(wc => {
+        usedWildcardIds.add(wc.id);
+      });
+    });
+
+    return selectedTrack.wildcards.filter(wc => !usedWildcardIds.has(wc.id));
+  };
+
   const participantCount = getStageParticipantCount(
     selectedTrack,
     selectedTrack.stages.length
   );
 
+  const totalParticipantCount = participantCount + selectedWildcards.length;
+
   useEffect(() => {
     if (format === "round-robin" && showForm) {
       const distribution = roundRobinService.getPoolDistribution(
-        participantCount,
+        totalParticipantCount,
         poolCount
       );
       setPoolDistribution(distribution);
 
       const validation = roundRobinService.validatePoolSetup(
-        participantCount,
+        totalParticipantCount,
         poolCount
       );
       setPoolValidation(validation);
-
-      if (poolCount === 1) {
-        const defaultPoolCount =
-          roundRobinService.getDefaultPoolCount(participantCount);
-        setPoolCount(defaultPoolCount);
-      }
     }
-  }, [format, poolCount, participantCount, showForm]);
+  }, [format, poolCount, totalParticipantCount, showForm]);
 
   const validateQualifiers = (value: number) => {
     if (format === "single-elimination") {
       const isPowerOf2 = value > 0 && (value & (value - 1)) === 0;
-      if (!isPowerOf2 || value > participantCount) {
+      if (!isPowerOf2 || value > totalParticipantCount) {
         setError(
           "Qualifiers must be a power of 2 and not exceed participant count"
         );
@@ -136,15 +143,17 @@ const TrackView: React.FC<TrackViewProps> = ({
     } else if (format === "double-elimination") {
       if (value !== 1) {
         setError("Double elimination must qualify exactly 1 winner (must be the final stage)");
+      } else if (totalParticipantCount < 2) {
+        setError("Double elimination requires at least 2 participants");
       } else {
         setError(null);
       }
     } else {
       if (value < 0) {
         setError("Qualifiers cannot be negative");
-      } else if (value > participantCount) {
+      } else if (value > totalParticipantCount) {
         setError(
-          `Qualifiers cannot exceed ${participantCount} (total participants in this stage)`
+          `Qualifiers cannot exceed ${totalParticipantCount} (total participants in this stage)`
         );
       } else {
         setError(null);
@@ -164,6 +173,12 @@ const TrackView: React.FC<TrackViewProps> = ({
 
     const stageIndex = selectedTrack.stages.length;
     const stageParticipants = getStageParticipants(stageIndex);
+    
+    const wildcardParticipants = selectedTrack.wildcards.filter(wc => 
+      selectedWildcards.includes(wc.id)
+    );
+
+    const allStageParticipants = [...stageParticipants, ...wildcardParticipants];
 
     const newStage: Stage = {
       id: crypto.randomUUID(),
@@ -171,32 +186,26 @@ const TrackView: React.FC<TrackViewProps> = ({
       format,
       qualifiers,
       sequence: stageIndex + 1,
-      participants: stageParticipants,
+      participants: allStageParticipants,
       pools: [],
+      wildcards: wildcardParticipants,
     };
 
     let pools: Pool[] = [];
 
     if (newStage.format === "single-elimination") {
       const service = new SingleEliminationService();
-      pools = service.generatePools(stageParticipants, newStage.qualifiers);
-
-      console.log("Generated single elimination pools:", pools);
+      pools = service.generatePools(allStageParticipants, newStage.qualifiers);
     } else if (newStage.format === "round-robin") {
       const service = new RoundRobinService();
       pools = service.generatePools(
-        stageParticipants,
+        allStageParticipants,
         newStage.qualifiers,
         poolCount
       );
-
-      console.log("Generated round robin pools:", pools);
-      console.log("Pool count:", poolCount);
     } else if (newStage.format === "double-elimination") {
       const service = new DoubleEliminationService();
-      pools = service.generatePools(stageParticipants, newStage.qualifiers);
-
-      console.log("Generated double elimination pools:", pools);
+      pools = service.generatePools(allStageParticipants, newStage.qualifiers);
     }
 
     newStage.pools = pools;
@@ -208,6 +217,7 @@ const TrackView: React.FC<TrackViewProps> = ({
 
     setSelectedTrack(updatedTrack);
     setShowForm(false);
+    setSelectedWildcards([]);
   };
 
   const handleQualifiersChange = (value: number) => {
@@ -216,9 +226,19 @@ const TrackView: React.FC<TrackViewProps> = ({
   };
 
   const handlePoolCountChange = (value: number) => {
-    const maxPools = roundRobinService.getMaxPoolCount(participantCount);
+    const maxPools = roundRobinService.getMaxPoolCount(totalParticipantCount);
     const validatedValue = Math.min(Math.max(1, value), maxPools);
     setPoolCount(validatedValue);
+  };
+
+  const handleWildcardToggle = (wildcardId: string) => {
+    setSelectedWildcards(prev => {
+      if (prev.includes(wildcardId)) {
+        return prev.filter(id => id !== wildcardId);
+      } else {
+        return [...prev, wildcardId];
+      }
+    });
   };
 
   const canAddStage = () => {
@@ -239,7 +259,7 @@ const TrackView: React.FC<TrackViewProps> = ({
 
   const getValidSingleEliminationQualifiers = () => {
     const options = [];
-    for (let i = 1; i <= participantCount; i *= 2) {
+    for (let i = 1; i <= totalParticipantCount; i *= 2) {
       options.push(i);
     }
     return options;
@@ -282,7 +302,7 @@ const TrackView: React.FC<TrackViewProps> = ({
       <Input
         type="number"
         min={0}
-        max={participantCount}
+        max={totalParticipantCount}
         value={qualifiers}
         onChange={(e) => handleQualifiersChange(Number(e.target.value))}
         required
@@ -293,7 +313,7 @@ const TrackView: React.FC<TrackViewProps> = ({
   const renderPoolConfiguration = () => {
     if (format !== "round-robin") return null;
 
-    const maxPools = roundRobinService.getMaxPoolCount(participantCount);
+    const maxPools = roundRobinService.getMaxPoolCount(totalParticipantCount);
 
     return (
       <div className="space-y-3">
@@ -357,6 +377,50 @@ const TrackView: React.FC<TrackViewProps> = ({
     );
   };
 
+  const renderWildcardSelector = () => {
+    const availableWildcards = getAvailableWildcards();
+
+    if (availableWildcards.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="space-y-3">
+        <label className="text-sm font-medium">
+          Wildcards (Optional)
+          <span className="text-xs text-muted-foreground ml-2">
+            ({availableWildcards.length} available)
+          </span>
+        </label>
+        <div className="border rounded-lg p-3 space-y-2 bg-amber-50">
+          {availableWildcards.map((wildcard) => (
+            <div key={wildcard.id} className="flex items-center space-x-2">
+              <Checkbox
+                id={wildcard.id}
+                checked={selectedWildcards.includes(wildcard.id)}
+                onCheckedChange={() => handleWildcardToggle(wildcard.id)}
+              />
+              <label
+                htmlFor={wildcard.id}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                {wildcard.name}
+                <Badge variant="outline" className="ml-2 text-xs bg-amber-100">
+                  WC
+                </Badge>
+              </label>
+            </div>
+          ))}
+        </div>
+        {selectedWildcards.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {selectedWildcards.length} wildcard(s) selected. Total participants: {totalParticipantCount}
+          </p>
+        )}
+      </div>
+    );
+  };
+
   const renderBracketView = (stage: Stage, poolIndex: number) => {
     const pool = stage.pools[poolIndex];
     if (!pool) return null;
@@ -371,9 +435,19 @@ const TrackView: React.FC<TrackViewProps> = ({
 
             {round.byes.length > 0 && (
               <div className="text-xs text-muted-foreground">
-                <p>
+                <p className="flex flex-wrap gap-1">
                   Byes:{" "}
-                  {round.byes.map((bye) => bye.name).join(", ")}
+                  {round.byes.map((bye, idx) => (
+                    <span key={bye.id} className="inline-flex items-center gap-1">
+                      {bye.name}
+                      {bye.type === "wildcard" && (
+                        <Badge variant="outline" className="text-xs bg-amber-100 px-1 py-0">
+                          WC
+                        </Badge>
+                      )}
+                      {idx < round.byes.length - 1 && ","}
+                    </span>
+                  ))}
                 </p>
               </div>
             )}
@@ -384,15 +458,25 @@ const TrackView: React.FC<TrackViewProps> = ({
                   key={match.id}
                   className="border rounded p-2 text-xs"
                 >
-                  <div className="flex justify-between items-center">
-                    <span className="truncate">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="truncate flex items-center gap-1">
                       {match.party1?.name || "TBD"}
+                      {match.party1?.type === "wildcard" && (
+                        <Badge variant="outline" className="text-xs bg-amber-100 px-1 py-0">
+                          WC
+                        </Badge>
+                      )}
                     </span>
                     <span className="text-muted-foreground">
                       vs
                     </span>
-                    <span className="truncate">
+                    <span className="truncate flex items-center gap-1">
                       {match.party2?.name || "TBD"}
+                      {match.party2?.type === "wildcard" && (
+                        <Badge variant="outline" className="text-xs bg-amber-100 px-1 py-0">
+                          WC
+                        </Badge>
+                      )}
                     </span>
                   </div>
                   {match.winner && (
@@ -423,6 +507,7 @@ const TrackView: React.FC<TrackViewProps> = ({
           <div className="flex gap-4 text-sm text-muted-foreground capitalize">
             <p>Type: {selectedTrack.type}</p>
             <p>Total Participants: {selectedTrack.participants.length}</p>
+            <p>Wildcards Available: {getAvailableWildcards().length}</p>
             <p>Stages: {selectedTrack.stages.length}</p>
           </div>
         </CardContent>
@@ -451,9 +536,24 @@ const TrackView: React.FC<TrackViewProps> = ({
           <div key={stage.id} className="space-y-2">
             <StageView
               stage={stage}
-              participantCount={participantCount}
+              participantCount={participantCount + stage.wildcards.length}
               stageNumber={index + 1}
             />
+
+            {stage.wildcards.length > 0 && (
+              <Card className="bg-amber-50 border-amber-200">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="bg-amber-100">
+                      Wildcards in this stage
+                    </Badge>
+                    <p className="text-sm">
+                      {stage.wildcards.map(wc => wc.name).join(", ")}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {stage.format === "single-elimination" && stage.pools.length > 0 && (
               <Card className="bg-gray-50">
@@ -505,7 +605,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {stage.pools.map((pool, poolIndex) => (
+                  {stage.pools.map((pool) => (
                     <div
                       key={pool.id}
                       className="border rounded-lg p-3 bg-white"
@@ -515,9 +615,19 @@ const TrackView: React.FC<TrackViewProps> = ({
                       </h4>
 
                       <div className="text-xs text-muted-foreground mb-3">
-                        <p>
+                        <p className="flex flex-wrap gap-1">
                           Participants:{" "}
-                          {pool.parties.map((p) => p.name).join(", ")}
+                          {pool.parties.map((p, idx) => (
+                            <span key={p.id} className="inline-flex items-center gap-1">
+                              {p.name}
+                              {p.type === "wildcard" && (
+                                <Badge variant="outline" className="text-xs bg-amber-100 px-1 py-0">
+                                  WC
+                                </Badge>
+                              )}
+                              {idx < pool.parties.length - 1 && ", "}
+                            </span>
+                          ))}
                         </p>
                       </div>
 
@@ -530,9 +640,19 @@ const TrackView: React.FC<TrackViewProps> = ({
 
                             {round.byes.length > 0 && (
                               <div className="text-xs text-orange-600 mb-1">
-                                <p>
+                                <p className="flex flex-wrap gap-1">
                                   Bye:{" "}
-                                  {round.byes.map((bye) => bye.name).join(", ")}
+                                  {round.byes.map((bye, idx) => (
+                                    <span key={bye.id} className="inline-flex items-center gap-1">
+                                      {bye.name}
+                                      {bye.type === "wildcard" && (
+                                        <Badge variant="outline" className="text-xs bg-amber-100 px-1 py-0">
+                                          WC
+                                        </Badge>
+                                      )}
+                                      {idx < round.byes.length - 1 && ","}
+                                    </span>
+                                  ))}
                                 </p>
                               </div>
                             )}
@@ -543,15 +663,25 @@ const TrackView: React.FC<TrackViewProps> = ({
                                   key={match.id}
                                   className="border rounded p-2 text-xs bg-gray-50"
                                 >
-                                  <div className="flex justify-between items-center">
-                                    <span className="truncate">
+                                  <div className="flex justify-between items-center gap-2">
+                                    <span className="truncate flex items-center gap-1">
                                       {match.party1?.name || "TBD"}
+                                      {match.party1?.type === "wildcard" && (
+                                        <Badge variant="outline" className="text-xs bg-amber-100 px-1 py-0">
+                                          WC
+                                        </Badge>
+                                      )}
                                     </span>
                                     <span className="text-muted-foreground">
                                       vs
                                     </span>
-                                    <span className="truncate">
+                                    <span className="truncate flex items-center gap-1">
                                       {match.party2?.name || "TBD"}
+                                      {match.party2?.type === "wildcard" && (
+                                        <Badge variant="outline" className="text-xs bg-amber-100 px-1 py-0">
+                                          WC
+                                        </Badge>
+                                      )}
                                     </span>
                                   </div>
                                   {match.winner && (
@@ -585,6 +715,7 @@ const TrackView: React.FC<TrackViewProps> = ({
               {participantCount !== 1 ? "s" : ""}
               {selectedTrack.stages.length > 0 &&
                 ` (qualified from previous stage)`}
+              {selectedWildcards.length > 0 && ` + ${selectedWildcards.length} wildcard(s)`}
             </p>
           </CardHeader>
           <CardContent>
@@ -627,6 +758,8 @@ const TrackView: React.FC<TrackViewProps> = ({
                 )}
               </div>
 
+              {renderWildcardSelector()}
+
               {renderPoolConfiguration()}
 
               <div className="space-y-2">
@@ -647,7 +780,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 {format === "round-robin" && (
                   <p className="text-xs text-muted-foreground">
-                    Range: 0 - {participantCount}
+                    Range: 0 - {totalParticipantCount}
                   </p>
                 )}
               </div>
@@ -704,6 +837,6 @@ const TrackView: React.FC<TrackViewProps> = ({
       )}
     </div>
   );
-};
+}
 
 export default TrackView;

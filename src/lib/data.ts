@@ -84,6 +84,26 @@ export const tournamentFixture: Tournament = {
           type: "individual",
         },
       ],
+      wildcards: [
+        {
+          id: "wc-001",
+          name: "Wild Card Player 1",
+          seed: 999,
+          type: "wildcard",
+        },
+        {
+          id: "wc-002",
+          name: "Wild Card Player 2",
+          seed: 999,
+          type: "wildcard",
+        },
+        {
+          id: "wc-003",
+          name: "Wild Card Player 3",
+          seed: 999,
+          type: "wildcard",
+        },
+      ],
       stages: [],
     },
     {
@@ -166,6 +186,28 @@ export const tournamentFixture: Tournament = {
             {
               id: "player-008",
               name: "Amanda Silver",
+              seed: 2,
+              type: "individual",
+            },
+          ],
+        },
+      ],
+      wildcards: [
+        {
+          id: "wc-team-001",
+          name: "Wild Card Team 1",
+          seed: 999,
+          type: "team",
+          members: [
+            {
+              id: "wc-player-001",
+              name: "Wild Player A",
+              seed: 1,
+              type: "individual",
+            },
+            {
+              id: "wc-player-002",
+              name: "Wild Player B",
               seed: 2,
               type: "individual",
             },
