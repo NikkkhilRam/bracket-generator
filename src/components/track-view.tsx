@@ -8,6 +8,7 @@ import StageView from "./stage-view";
 import { getStageParticipantCount, validateStageSequence } from "@/services";
 import { SingleEliminationService } from "@/services/single-elimination.service";
 import { RoundRobinService } from "@/services/round-robin.service";
+import { DoubleEliminationService } from "@/services/double-elimination.service";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -33,7 +34,7 @@ const TrackView: React.FC<TrackViewProps> = ({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const [name, setName] = useState("");
-  const [format, setFormat] = useState<"single-elimination" | "round-robin">(
+  const [format, setFormat] = useState<"single-elimination" | "round-robin" | "double-elimination">(
     "single-elimination"
   );
   const [qualifiers, setQualifiers] = useState(0);
@@ -132,6 +133,12 @@ const TrackView: React.FC<TrackViewProps> = ({
       } else {
         setError(null);
       }
+    } else if (format === "double-elimination") {
+      if (value !== 1) {
+        setError("Double elimination must qualify exactly 1 winner (must be the final stage)");
+      } else {
+        setError(null);
+      }
     } else {
       if (value < 0) {
         setError("Qualifiers cannot be negative");
@@ -185,6 +192,11 @@ const TrackView: React.FC<TrackViewProps> = ({
 
       console.log("Generated round robin pools:", pools);
       console.log("Pool count:", poolCount);
+    } else if (newStage.format === "double-elimination") {
+      const service = new DoubleEliminationService();
+      pools = service.generatePools(stageParticipants, newStage.qualifiers);
+
+      console.log("Generated double elimination pools:", pools);
     }
 
     newStage.pools = pools;
@@ -213,6 +225,11 @@ const TrackView: React.FC<TrackViewProps> = ({
     if (selectedTrack.stages.length === 0) return true;
 
     const lastStage = selectedTrack.stages[selectedTrack.stages.length - 1];
+    
+    if (lastStage.format === "double-elimination") {
+      return false;
+    }
+    
     return lastStage.qualifiers > 1;
   };
 
@@ -247,6 +264,17 @@ const TrackView: React.FC<TrackViewProps> = ({
             ))}
           </SelectContent>
         </Select>
+      );
+    }
+
+    if (format === "double-elimination") {
+      return (
+        <Input
+          type="number"
+          value={1}
+          disabled
+          className="bg-gray-100"
+        />
       );
     }
 
@@ -289,7 +317,6 @@ const TrackView: React.FC<TrackViewProps> = ({
           </p>
         </div>
 
-        {/* Pool Distribution Preview */}
         {poolDistribution.length > 0 && (
           <div className="space-y-2">
             <label className="text-sm font-medium">Pool Distribution</label>
@@ -303,7 +330,6 @@ const TrackView: React.FC<TrackViewProps> = ({
           </div>
         )}
 
-        {/* Pool Validation Warnings/Errors */}
         {poolValidation.warnings.length > 0 && (
           <Alert className="border-yellow-200 bg-yellow-50">
             <AlertDescription className="text-sm text-yellow-800">
@@ -331,6 +357,58 @@ const TrackView: React.FC<TrackViewProps> = ({
     );
   };
 
+  const renderBracketView = (stage: Stage, poolIndex: number) => {
+    const pool = stage.pools[poolIndex];
+    if (!pool) return null;
+
+    return (
+      <div className="space-y-3">
+        {pool.rounds.map((round, roundIndex) => (
+          <div key={round.id} className="space-y-2">
+            <h4 className="font-medium text-sm">
+              Round {roundIndex + 1}
+            </h4>
+
+            {round.byes.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                <p>
+                  Byes:{" "}
+                  {round.byes.map((bye) => bye.name).join(", ")}
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {round.matches.map((match) => (
+                <div
+                  key={match.id}
+                  className="border rounded p-2 text-xs"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="truncate">
+                      {match.party1?.name || "TBD"}
+                    </span>
+                    <span className="text-muted-foreground">
+                      vs
+                    </span>
+                    <span className="truncate">
+                      {match.party2?.name || "TBD"}
+                    </span>
+                  </div>
+                  {match.winner && (
+                    <div className="text-center mt-1 text-green-600 font-medium">
+                      Winner: {match.winner.name}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <Button variant="outline" onClick={callback}>
@@ -350,7 +428,6 @@ const TrackView: React.FC<TrackViewProps> = ({
         </CardContent>
       </Card>
 
-      {/* Validation Errors */}
       {validationErrors.length > 0 && (
         <Alert variant="destructive">
           <AlertDescription>
@@ -378,63 +455,48 @@ const TrackView: React.FC<TrackViewProps> = ({
               stageNumber={index + 1}
             />
 
-            {/* Display bracket information for single elimination */}
-            {stage.format === "single-elimination" &&
-              stage.pools.length > 0 && (
-                <Card className="bg-gray-50">
+            {stage.format === "single-elimination" && stage.pools.length > 0 && (
+              <Card className="bg-gray-50">
+                <CardHeader>
+                  <CardTitle className="text-md">Bracket Structure</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {renderBracketView(stage, 0)}
+                </CardContent>
+              </Card>
+            )}
+
+            {stage.format === "double-elimination" && stage.pools.length > 0 && (
+              <div className="space-y-3">
+                <Card className="bg-green-50">
                   <CardHeader>
-                    <CardTitle className="text-md">Bracket Structure</CardTitle>
+                    <CardTitle className="text-md">Winners Bracket</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {stage.pools[0].rounds.map((round, roundIndex) => (
-                      <div key={round.id} className="space-y-2">
-                        <h4 className="font-medium text-sm">
-                          Round {roundIndex + 1}
-                        </h4>
-
-                        {/* Display byes if any */}
-                        {round.byes.length > 0 && (
-                          <div className="text-xs text-muted-foreground">
-                            <p>
-                              Byes:{" "}
-                              {round.byes.map((bye) => bye.name).join(", ")}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Display matches */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {round.matches.map((match) => (
-                            <div
-                              key={match.id}
-                              className="border rounded p-2 text-xs"
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className="truncate">
-                                  {match.party1?.name || "TBD"}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  vs
-                                </span>
-                                <span className="truncate">
-                                  {match.party2?.name || "TBD"}
-                                </span>
-                              </div>
-                              {match.winner && (
-                                <div className="text-center mt-1 text-green-600 font-medium">
-                                  Winner: {match.winner.name}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                    {renderBracketView(stage, 0)}
                   </CardContent>
                 </Card>
-              )}
 
-            {/* Display pool information for round robin */}
+                <Card className="bg-red-50">
+                  <CardHeader>
+                    <CardTitle className="text-md">Losers Bracket</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {renderBracketView(stage, 1)}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-yellow-50">
+                  <CardHeader>
+                    <CardTitle className="text-md">Grand Final</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {renderBracketView(stage, 2)}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {stage.format === "round-robin" && stage.pools.length > 0 && (
               <Card className="bg-blue-50">
                 <CardHeader>
@@ -452,7 +514,6 @@ const TrackView: React.FC<TrackViewProps> = ({
                         {pool.name} ({pool.parties.length} participants)
                       </h4>
 
-                      {/* Pool participants */}
                       <div className="text-xs text-muted-foreground mb-3">
                         <p>
                           Participants:{" "}
@@ -460,7 +521,6 @@ const TrackView: React.FC<TrackViewProps> = ({
                         </p>
                       </div>
 
-                      {/* Pool rounds and matches */}
                       <div className="space-y-2">
                         {pool.rounds.map((round, roundIndex) => (
                           <div key={round.id} className="space-y-1">
@@ -468,7 +528,6 @@ const TrackView: React.FC<TrackViewProps> = ({
                               Round {roundIndex + 1}
                             </h5>
 
-                            {/* Display byes if any */}
                             {round.byes.length > 0 && (
                               <div className="text-xs text-orange-600 mb-1">
                                 <p>
@@ -478,7 +537,6 @@ const TrackView: React.FC<TrackViewProps> = ({
                               </div>
                             )}
 
-                            {/* Display matches */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                               {round.matches.map((match) => (
                                 <div
@@ -516,7 +574,6 @@ const TrackView: React.FC<TrackViewProps> = ({
         );
       })}
 
-      {/* Stage Form */}
       {showForm ? (
         <Card className="shadow-md">
           <CardHeader>
@@ -547,7 +604,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                 <Select
                   value={format}
                   onValueChange={(value) =>
-                    setFormat(value as "single-elimination" | "round-robin")
+                    setFormat(value as "single-elimination" | "round-robin" | "double-elimination")
                   }
                 >
                   <SelectTrigger>
@@ -558,11 +615,18 @@ const TrackView: React.FC<TrackViewProps> = ({
                       Single Elimination
                     </SelectItem>
                     <SelectItem value="round-robin">Round Robin</SelectItem>
+                    <SelectItem value="double-elimination">
+                      Double Elimination
+                    </SelectItem>
                   </SelectContent>
                 </Select>
+                {format === "double-elimination" && (
+                  <p className="text-xs text-amber-600">
+                    Note: Double elimination must be the final stage (qualifies 1 winner only)
+                  </p>
+                )}
               </div>
 
-              {/* Pool Configuration for Round Robin */}
               {renderPoolConfiguration()}
 
               <div className="space-y-2">
@@ -571,6 +635,11 @@ const TrackView: React.FC<TrackViewProps> = ({
                   {format === "single-elimination" && (
                     <span className="text-xs text-muted-foreground ml-2">
                       (Must be power of 2)
+                    </span>
+                  )}
+                  {format === "double-elimination" && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (Fixed at 1 - final stage)
                     </span>
                   )}
                 </label>
@@ -616,12 +685,19 @@ const TrackView: React.FC<TrackViewProps> = ({
             </>
           ) : (
             <div className="text-sm text-muted-foreground">
-              <p>
-                Cannot add more stages - previous stage qualifies only{" "}
-                {selectedTrack.stages[selectedTrack.stages.length - 1]
-                  ?.qualifiers || 0}{" "}
-                participant(s)
-              </p>
+              {selectedTrack.stages.length > 0 && 
+               selectedTrack.stages[selectedTrack.stages.length - 1]?.format === "double-elimination" ? (
+                <p>
+                  Cannot add more stages - double elimination is the final stage
+                </p>
+              ) : (
+                <p>
+                  Cannot add more stages - previous stage qualifies only{" "}
+                  {selectedTrack.stages[selectedTrack.stages.length - 1]
+                    ?.qualifiers || 0}{" "}
+                  participant(s)
+                </p>
+              )}
             </div>
           )}
         </div>

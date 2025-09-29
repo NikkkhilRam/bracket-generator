@@ -46,7 +46,7 @@ export interface Stage {
   id: string;
   name: string;
   participants: Participant[];
-  format: "round-robin" | "single-elimination";
+  format: "round-robin" | "single-elimination" | "double-elimination";
   sequence: number;
   pools: Pool[];
   qualifiers: number;
