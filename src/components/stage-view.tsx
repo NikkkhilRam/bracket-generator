@@ -21,6 +21,10 @@ const StageView: React.FC<StageViewProps> = ({
         return "bg-red-100 text-red-800 border-red-200";
       case "round-robin":
         return "bg-blue-100 text-blue-800 border-blue-200";
+      case "double-elimination":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "swiss":
+        return "bg-purple-100 text-purple-800 border-purple-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -36,6 +40,21 @@ const StageView: React.FC<StageViewProps> = ({
     return eliminated > 0 ? eliminated : 0;
   };
 
+  const getFormatDisplayName = (format: string) => {
+    switch (format) {
+      case "single-elimination":
+        return "Single Elimination";
+      case "round-robin":
+        return "Round Robin";
+      case "double-elimination":
+        return "Double Elimination";
+      case "swiss":
+        return "Swiss System";
+      default:
+        return format;
+    }
+  };
+
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -47,7 +66,7 @@ const StageView: React.FC<StageViewProps> = ({
             variant="outline" 
             className={getStageTypeColor(stage.format)}
           >
-            {stage.format.replace('-', ' ')}
+            {getFormatDisplayName(stage.format)}
           </Badge>
         </div>
       </CardHeader>
@@ -68,6 +87,14 @@ const StageView: React.FC<StageViewProps> = ({
           </div>
         </div>
         
+        {stage.format === "swiss" && stage.roundCount && (
+          <div className="text-xs text-muted-foreground bg-purple-50 p-2 rounded">
+            <span className="text-purple-700 font-medium">
+              {stage.roundCount} Swiss rounds - players paired by standings each round
+            </span>
+          </div>
+        )}
+        
         {getEliminationInfo() > 0 && (
           <div className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
             <span className="text-red-600 font-medium">
@@ -82,6 +109,9 @@ const StageView: React.FC<StageViewProps> = ({
           <span>Sequence: {stage.sequence}</span>
           {stage.format === "single-elimination" && (
             <span>Power of 2 required</span>
+          )}
+          {stage.format === "swiss" && (
+            <span>Standings-based pairing</span>
           )}
         </div>
       </CardContent>

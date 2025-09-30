@@ -1,6 +1,6 @@
 "use client";
 import { tournamentFixture } from "@/lib/data";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,9 @@ import TrackView from "@/components/track-view";
 
 const HomePage = () => {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
-
+  useEffect(() => {
+    console.log(selectedTrack);
+  }, [selectedTrack]);
   return (
     <div className="space-y-6 p-6">
       <Card className="shadow-md">

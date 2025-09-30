@@ -84,64 +84,37 @@ export class RoundRobinService implements FormatService {
     return pools;
   }
 
-  private generateRoundsForPool(
+private generateRoundsForPool(
     participants: Participant[],
     poolNumber: number
   ): Round[] {
     if (participants.length < 2) return [];
 
-    const rounds: Round[] = [];
-    const numParticipants = participants.length;
-    const numRounds =
-      numParticipants % 2 === 0 ? numParticipants - 1 : numParticipants;
+    const matches: Match[] = [];
+    let matchCounter = 1;
 
-    const workingArray = [...participants];
-    if (numParticipants % 2 === 1) {
-      workingArray.push(null as any);
-    }
-
-    const totalTeams = workingArray.length;
-
-    for (let roundNum = 1; roundNum <= numRounds; roundNum++) {
-      const matches: Match[] = [];
-      const byes: Participant[] = [];
-
-      for (let i = 0; i < totalTeams / 2; i++) {
-        const team1 = workingArray[i];
-        const team2 = workingArray[totalTeams - 1 - i];
-
-        if (team1 && team2) {
-          const match: Match = {
-            id: `p${poolNumber}-r${roundNum}-m${i + 1}`,
-            party1: team1,
-            party2: team2,
-            winner: null,
-            clashId: `clash-p${poolNumber}-r${roundNum}-${i + 1}`,
-          };
-          matches.push(match);
-        } else if (team1 && !team2) {
-          byes.push(team1);
-        } else if (!team1 && team2) {
-          byes.push(team2);
-        }
-      }
-
-      const round: Round = {
-        id: `p${poolNumber}-round-${roundNum}`,
-        byes,
-        matches,
-      };
-      rounds.push(round);
-
-      if (roundNum < numRounds) {
-        const lastTeam = workingArray.pop();
-        if (lastTeam !== undefined) {
-          workingArray.splice(1, 0, lastTeam);
-        }
+    // Generate all possible matches between participants
+    for (let i = 0; i < participants.length; i++) {
+      for (let j = i + 1; j < participants.length; j++) {
+        const match: Match = {
+          id: `p${poolNumber}-r1-m${matchCounter}`,
+          party1: participants[i],
+          party2: participants[j],
+          winner: null,
+          clashId: `clash-p${poolNumber}-r1-${matchCounter}`,
+        };
+        matches.push(match);
+        matchCounter++;
       }
     }
 
-    return rounds;
+    const round: Round = {
+      id: `p${poolNumber}-round-1`,
+      byes: [],
+      matches,
+    };
+
+    return [round];
   }
 
   calculateMatchesInPool(participantCount: number): number {

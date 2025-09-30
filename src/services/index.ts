@@ -3,11 +3,13 @@ import { FormatService } from "./format-service";
 import { RoundRobinService } from "./round-robin.service";
 import { SingleEliminationService } from "./single-elimination.service";
 import { DoubleEliminationService } from "./double-elimination.service";
+import { SwissService } from "./swiss.service";
 
 const services: FormatService[] = [
   new RoundRobinService(),
   new SingleEliminationService(),
   new DoubleEliminationService(),
+  new SwissService(),
 ];
 
 export const formats: Record<string, FormatService> = Object.fromEntries(

@@ -27,10 +27,11 @@ const StageForm: React.FC<StageFormProps> = ({
   stageIndex,
 }) => {
   const [name, setName] = useState("");
-  const [format, setFormat] = useState<"single-elimination" | "round-robin" | "double-elimination">(
+  const [format, setFormat] = useState<"single-elimination" | "round-robin" | "double-elimination" | "swiss">(
     "single-elimination"
   );
   const [qualifiers, setQualifiers] = useState(0);
+  const [roundCount, setRoundCount] = useState(3);
   const [error, setError] = useState<string | null>(null);
 
   const participantCount = getStageParticipantCount(track, stageIndex);
@@ -45,6 +46,8 @@ const StageForm: React.FC<StageFormProps> = ({
           ? validRange?.validValues?.[0] || 1
           : format === "double-elimination"
           ? 1
+          : format === "swiss"
+          ? Math.ceil(participantCount / 2)
           : Math.min(qualifiers, participantCount);
 
       setQualifiers(newQualifiers);
@@ -76,10 +79,12 @@ const StageForm: React.FC<StageFormProps> = ({
       name,
       format,
       qualifiers,
+      roundCount: format === "swiss" ? roundCount : undefined,
       id: "",
       sequence: 0,
       participants: [],
       pools: [],
+      wildcards: []
     });
   };
 
@@ -132,6 +137,36 @@ const StageForm: React.FC<StageFormProps> = ({
     );
   };
 
+  const renderSwissRoundInput = () => {
+    if (format !== "swiss") return null;
+
+    // Calculate recommended rounds based on participant count
+    const recommendedRounds = Math.ceil(Math.log2(participantCount));
+    const maxRounds = participantCount - 1;
+
+    return (
+      <div className="space-y-2">
+        <label className="text-sm font-medium">
+          Number of Rounds
+          <span className="text-xs text-muted-foreground ml-2">
+            (Recommended: {recommendedRounds}, Max: {maxRounds})
+          </span>
+        </label>
+        <Input
+          type="number"
+          min={1}
+          max={maxRounds}
+          value={roundCount}
+          onChange={(e) => setRoundCount(Number(e.target.value))}
+          required
+        />
+        <p className="text-xs text-muted-foreground">
+          Players are paired based on their current standings each round
+        </p>
+      </div>
+    );
+  };
+
   return (
     <Card className="shadow-md">
       <CardHeader>
@@ -159,7 +194,7 @@ const StageForm: React.FC<StageFormProps> = ({
             <Select
               value={format}
               onValueChange={(value) =>
-                setFormat(value as "single-elimination" | "round-robin" | "double-elimination")
+                setFormat(value as "single-elimination" | "round-robin" | "double-elimination" | "swiss")
               }
             >
               <SelectTrigger>
@@ -173,6 +208,7 @@ const StageForm: React.FC<StageFormProps> = ({
                 <SelectItem value="double-elimination">
                   Double Elimination
                 </SelectItem>
+                <SelectItem value="swiss">Swiss System</SelectItem>
               </SelectContent>
             </Select>
             {format === "double-elimination" && (
@@ -180,7 +216,14 @@ const StageForm: React.FC<StageFormProps> = ({
                 Note: Double elimination must be the final stage (qualifies 1 winner only)
               </p>
             )}
+            {format === "swiss" && (
+              <p className="text-xs text-purple-600">
+                Swiss system pairs players by standings each round. Ideal for large tournaments.
+              </p>
+            )}
           </div>
+
+          {renderSwissRoundInput()}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">
@@ -195,6 +238,11 @@ const StageForm: React.FC<StageFormProps> = ({
                   (Fixed at 1 - final stage)
                 </span>
               )}
+              {format === "swiss" && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  (Top players advance)
+                </span>
+              )}
             </label>
             {renderQualifierInput()}
             {error && <p className="text-sm text-red-500">{error}</p>}
@@ -206,6 +254,11 @@ const StageForm: React.FC<StageFormProps> = ({
             {format === "single-elimination" && validRange?.validValues && (
               <p className="text-xs text-muted-foreground">
                 Valid options: {validRange.validValues.join(", ")}
+              </p>
+            )}
+            {format === "swiss" && (
+              <p className="text-xs text-muted-foreground">
+                Range: {validRange?.min} - {validRange?.max}
               </p>
             )}
           </div>

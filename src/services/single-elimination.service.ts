@@ -183,7 +183,7 @@ export class SingleEliminationService implements FormatService {
     return participants;
   }
 
-  private getNextPowerOf2(n: number): number {
+   getNextPowerOf2(n: number): number {
     let power = 1;
     while (power < n) {
       power *= 2;

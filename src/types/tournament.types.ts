@@ -16,9 +16,10 @@ export interface Individual {
 export interface PlacholderParticipant {
   id: string;
   name: string;
-  type: "winner" | "loser" | "wildcard" |"placeholder";
+  type: "winner" | "loser" | "wildcard" | "placeholder";
   seed: number;
 }
+
 export type Participant = Individual | Team | PlacholderParticipant;
 
 export interface Match {
@@ -46,11 +47,12 @@ export interface Stage {
   id: string;
   name: string;
   participants: Participant[];
-  format: "round-robin" | "single-elimination" | "double-elimination";
+  format: "round-robin" | "single-elimination" | "double-elimination" | "swiss";
   sequence: number;
   pools: Pool[];
   qualifiers: number;
   wildcards: Participant[];
+  roundCount?: number;
 }
 
 export interface Track {
