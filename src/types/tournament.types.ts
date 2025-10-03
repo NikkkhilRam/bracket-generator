@@ -47,12 +47,13 @@ export interface Stage {
   id: string;
   name: string;
   participants: Participant[];
-  format: "round-robin" | "single-elimination" | "double-elimination" | "swiss";
+  format: "round-robin" | "single-elimination" | "double-elimination" | "swiss" | "americano" | "mexicano";
   sequence: number;
   pools: Pool[];
   qualifiers: number;
   wildcards: Participant[];
   roundCount?: number;
+  poolCount?: number;
 }
 
 export interface Track {

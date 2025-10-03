@@ -25,6 +25,10 @@ const StageView: React.FC<StageViewProps> = ({
         return "bg-orange-100 text-orange-800 border-orange-200";
       case "swiss":
         return "bg-purple-100 text-purple-800 border-purple-200";
+      case "americano":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "mexicano":
+        return "bg-teal-100 text-teal-800 border-teal-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -50,6 +54,10 @@ const StageView: React.FC<StageViewProps> = ({
         return "Double Elimination";
       case "swiss":
         return "Swiss System";
+      case "americano":
+        return "Americano";
+      case "mexicano":
+        return "Mexicano";
       default:
         return format;
     }
@@ -94,6 +102,22 @@ const StageView: React.FC<StageViewProps> = ({
             </span>
           </div>
         )}
+
+        {stage.format === "americano" && (
+          <div className="text-xs text-muted-foreground bg-green-50 p-2 rounded">
+            <span className="text-green-700 font-medium">
+              Americano format - players rotate partners each round
+            </span>
+          </div>
+        )}
+
+        {stage.format === "mexicano" && (
+          <div className="text-xs text-muted-foreground bg-teal-50 p-2 rounded">
+            <span className="text-teal-700 font-medium">
+              Mexicano format - dynamic team formation based on standings
+            </span>
+          </div>
+        )}
         
         {getEliminationInfo() > 0 && (
           <div className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
@@ -112,6 +136,9 @@ const StageView: React.FC<StageViewProps> = ({
           )}
           {stage.format === "swiss" && (
             <span>Standings-based pairing</span>
+          )}
+          {(stage.format === "americano" || stage.format === "mexicano") && (
+            <span>Partner rotation system</span>
           )}
         </div>
       </CardContent>

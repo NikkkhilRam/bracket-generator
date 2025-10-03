@@ -23,16 +23,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "./ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import TrackConfigurationSelector, {
   ConfigurationMode,
 } from "./TrackConfigurationSelector";
+import {
+  SingleStageForm,
+  MultiStageForm,
+  PoolConfiguration,
+  SwissConfiguration,
+  WildcardSelector,
+  QualifierInput,
+  BracketView,
+} from "./track-view-components"
+import { AmericanoClassicService } from "@/services/americano-classic.service";
+import { MexicanoClassicService } from "@/services/mexicano-classic.service";
 
 type SingleStageFormat =
   | "single-elimination"
   | "round-robin"
   | "double-elimination"
-  | "swiss";
+  | "swiss"
+  | "americano"
+  | "mexicano";
 type MultiStageFormat = "round-robin" | "single-elimination" | "swiss";
 
 interface TrackViewProps {
@@ -73,6 +85,8 @@ const TrackView: React.FC<TrackViewProps> = ({
   const singleElimService = useMemo(() => new SingleEliminationService(), []);
   const doubleElimService = useMemo(() => new DoubleEliminationService(), []);
   const swissService = useMemo(() => new SwissService(), []);
+  const americanoService = useMemo(() => new AmericanoClassicService(), []);
+  const mexicanoService = useMemo(() => new MexicanoClassicService(), []);
 
   const [poolDistribution, setPoolDistribution] = useState<number[]>([]);
   const [poolValidation, setPoolValidation] = useState<{
@@ -123,6 +137,14 @@ const TrackView: React.FC<TrackViewProps> = ({
         );
         setSwissValidation(validation);
         setError(validation.valid ? null : validation.errors[0]);
+      } else if (format === "americano") {
+        const service = getFormatByName(format)!;
+        const errorMsg = service.getErrorMessage(qualifiers, totalParticipantCount);
+        setError(errorMsg);
+      } else if (format === "mexicano") {
+        const service = getFormatByName(format)!;
+        const errorMsg = service.getErrorMessage(qualifiers, totalParticipantCount);
+        setError(errorMsg);
       } else if (format === "single-elimination") {
         const service = getFormatByName(format)!;
         if (!service.validateQualifiers(qualifiers, totalParticipantCount)) {
@@ -151,8 +173,6 @@ const TrackView: React.FC<TrackViewProps> = ({
     roundRobinService,
     swissService,
   ]);
-
-
 
   const getStageParticipants = (stageIndex: number): Participant[] => {
     if (stageIndex === 0) {
@@ -210,6 +230,7 @@ const TrackView: React.FC<TrackViewProps> = ({
       pools: [],
       wildcards: wildcardParticipants,
       roundCount: stageFormat === "swiss" ? stageRoundCount : undefined,
+      poolCount: stageFormat === "round-robin" || stageFormat === "americano" ? stagePoolCount : undefined,
     };
 
     let pools: Pool[] = [];
@@ -224,6 +245,17 @@ const TrackView: React.FC<TrackViewProps> = ({
         allStageParticipants,
         newStage.qualifiers,
         stageRoundCount
+      );
+    } else if (stageFormat === "americano") {
+      pools = (service as AmericanoClassicService).generatePools(
+        allStageParticipants,
+        newStage.qualifiers,
+        stagePoolCount || 1
+      );
+    } else if (stageFormat === "mexicano") {
+      pools = (service as MexicanoClassicService).generatePools(
+        allStageParticipants,
+        newStage.qualifiers
       );
     } else if (
       stageFormat === "single-elimination" ||
@@ -267,11 +299,27 @@ const TrackView: React.FC<TrackViewProps> = ({
     const finalFormat = singleStageFormat;
 
     const newStageName = `${finalFormat.replace("-", " ")} Final`;
-    const finalQualifiers = finalFormat === "double-elimination" ? 1 : 0;
+    const finalQualifiers = finalFormat === "double-elimination" || finalFormat === "americano" || finalFormat === "mexicano" ? 1 : 0;
 
     if (finalFormat === "double-elimination" && allParticipants.length < 2) {
       alert("Double Elimination requires at least 2 participants.");
       return;
+    }
+
+    if (finalFormat === "americano" && allParticipants.length < 4) {
+      alert("Americano requires at least 4 players.");
+      return;
+    }
+
+    if (finalFormat === "mexicano") {
+      if (allParticipants.length < 4) {
+        alert("Mexicano requires at least 4 players.");
+        return;
+      }
+      if (allParticipants.length % 4 !== 0) {
+        alert("Mexicano requires the number of players to be a multiple of 4.");
+        return;
+      }
     }
 
     let stage: Stage;
@@ -302,6 +350,26 @@ const TrackView: React.FC<TrackViewProps> = ({
         1,
         undefined,
         defaultRounds
+      );
+    } else if (finalFormat === "americano") {
+      const defaultPools = americanoService.getMaxPoolCount(allParticipants.length);
+      stage = generateStage(
+        newStageName,
+        finalFormat,
+        allParticipants,
+        finalQualifiers,
+        [],
+        1,
+        Math.min(1, defaultPools)
+      );
+    } else if (finalFormat === "mexicano") {
+      stage = generateStage(
+        newStageName,
+        finalFormat,
+        allParticipants,
+        finalQualifiers,
+        [],
+        1
       );
     } else {
       stage = generateStage(
@@ -393,134 +461,6 @@ const TrackView: React.FC<TrackViewProps> = ({
     updateTrackWithStages([stage1, stage2]);
   };
 
-  const SingleStageForm = () => (
-    <Card className="shadow-md">
-      <CardHeader>
-        <CardTitle className="text-lg">Single Stage Tournament</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          {selectedTrack.participants.length} participants will enter this final
-          stage.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSingleStageSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Format</label>
-            <Select
-              value={singleStageFormat}
-              onValueChange={(value) =>
-                setSingleStageFormat(value as SingleStageFormat)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select format" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="single-elimination">
-                  Single Elimination
-                </SelectItem>
-                <SelectItem value="round-robin">Round Robin</SelectItem>
-                <SelectItem value="double-elimination">
-                  Double Elimination
-                </SelectItem>
-                <SelectItem value="swiss">Swiss System</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowPresetForm(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit">Generate Stage</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  );
-
-  const MultiStageForm = () => (
-    <Card className="shadow-md">
-      <CardHeader>
-        <CardTitle className="text-lg">Two Stage Ladder Tournament</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          {selectedTrack.participants.length} participants will be divided into
-          2 stages.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleMultiStageSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Stage 1: Qualifier Format
-            </label>
-            <Select
-              value={multiStageFormat1}
-              onValueChange={(value) =>
-                setMultiStageFormat1(value as MultiStageFormat)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select format" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="round-robin">Round Robin</SelectItem>
-                <SelectItem value="single-elimination">
-                  Single Elimination
-                </SelectItem>
-                <SelectItem value="swiss">Swiss System</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Will qualify approximately half of the participants.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Stage 2: Final Format</label>
-            <Select
-              value={multiStageFormat2}
-              onValueChange={(value) =>
-                setMultiStageFormat2(value as SingleStageFormat)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select format" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="single-elimination">
-                  Single Elimination
-                </SelectItem>
-                <SelectItem value="double-elimination">
-                  Double Elimination
-                </SelectItem>
-                <SelectItem value="round-robin">Round Robin</SelectItem>
-                <SelectItem value="swiss">Swiss System</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Will qualify exactly 1 winner.
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowPresetForm(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit">Generate 2 Stages</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  );
-
   const handleAddStage = () => {
     setShowForm(true);
     setName("");
@@ -542,9 +482,15 @@ const TrackView: React.FC<TrackViewProps> = ({
   };
 
   const handlePoolCountChange = (value: number) => {
-    const maxPools = roundRobinService.getMaxPoolCount(totalParticipantCount);
-    const validatedValue = Math.min(Math.max(1, value), maxPools);
-    setPoolCount(validatedValue);
+    if (format === "round-robin") {
+      const maxPools = roundRobinService.getMaxPoolCount(totalParticipantCount);
+      const validatedValue = Math.min(Math.max(1, value), maxPools);
+      setPoolCount(validatedValue);
+    } else if (format === "americano") {
+      const maxPools = americanoService.getMaxPoolCount(totalParticipantCount);
+      const validatedValue = Math.min(Math.max(1, value), maxPools);
+      setPoolCount(validatedValue);
+    }
   };
 
   const handleWildcardToggle = (wildcardId: string) => {
@@ -562,7 +508,7 @@ const TrackView: React.FC<TrackViewProps> = ({
 
     const lastStage = selectedTrack.stages[selectedTrack.stages.length - 1];
 
-    if (lastStage.format === "double-elimination") {
+    if (lastStage.format === "double-elimination" || lastStage.format === "americano" || lastStage.format === "mexicano") {
       return false;
     }
 
@@ -579,221 +525,6 @@ const TrackView: React.FC<TrackViewProps> = ({
       options.push(i);
     }
     return options;
-  };
-
-  const renderQualifierInput = () => {
-    if (format === "single-elimination") {
-      const validOptions = getValidSingleEliminationQualifiers();
-      return (
-        <Select
-          value={qualifiers.toString()}
-          onValueChange={(value) => handleQualifiersChange(Number(value))}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select qualifiers" />
-          </SelectTrigger>
-          <SelectContent>
-            {validOptions.map((value) => (
-              <SelectItem key={value} value={value.toString()}>
-                {value}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    }
-
-    if (format === "double-elimination") {
-      return (
-        <Input
-          type="number"
-          value={1}
-          disabled
-          className="bg-gray-100"
-          readOnly
-        />
-      );
-    }
-
-    return (
-      <Input
-        type="number"
-        min={0}
-        max={totalParticipantCount}
-        value={qualifiers}
-        onChange={(e) => handleQualifiersChange(Number(e.target.value))}
-        required
-      />
-    );
-  };
-
-  const renderPoolConfiguration = () => {
-    if (format !== "round-robin") return null;
-
-    const maxPools = roundRobinService.getMaxPoolCount(totalParticipantCount);
-
-    return (
-      <div className="space-y-3">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            Number of Pools
-            <span className="text-xs text-muted-foreground ml-2">
-              (Max: {maxPools})
-            </span>
-          </label>
-          <Input
-            type="number"
-            min={1}
-            max={maxPools}
-            value={poolCount}
-            onChange={(e) => handlePoolCountChange(Number(e.target.value))}
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            Each pool must have at least 2 participants
-          </p>
-        </div>
-
-        {poolDistribution.length > 0 && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Pool Distribution</label>
-            <div className="flex flex-wrap gap-2">
-              {poolDistribution.map((size, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
-                  Group {String.fromCharCode(65 + index)}: {size} participants
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {poolValidation.warnings.length > 0 && (
-          <Alert className="border-yellow-200 bg-yellow-50">
-            <AlertDescription className="text-sm text-yellow-800">
-              <ul className="list-disc list-inside space-y-1">
-                {poolValidation.warnings.map((warning, index) => (
-                  <li key={index}>{warning}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {poolValidation.errors.length > 0 && (
-          <Alert variant="destructive">
-            <AlertDescription className="text-sm">
-              <ul className="list-disc list-inside space-y-1">
-                {poolValidation.errors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-    );
-  };
-
-  const renderSwissConfiguration = () => {
-    if (format !== "swiss") return null;
-
-    const defaultRounds = swissService.getDefaultRoundCount(
-      totalParticipantCount
-    );
-    const maxRounds = swissService.getMaxRoundCount(totalParticipantCount);
-
-    return (
-      <div className="space-y-3">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            Number of Rounds
-            <span className="text-xs text-muted-foreground ml-2">
-              (Recommended: {defaultRounds}, Max: {maxRounds})
-            </span>
-          </label>
-          <Input
-            type="number"
-            min={swissService.getMinRoundCount()}
-            max={maxRounds}
-            value={roundCount}
-            onChange={(e) => setRoundCount(Number(e.target.value))}
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            Players are paired based on their current standings each round
-          </p>
-        </div>
-
-        {swissValidation.warnings.length > 0 && (
-          <Alert className="border-yellow-200 bg-yellow-50">
-            <AlertDescription className="text-sm text-yellow-800">
-              <ul className="list-disc list-inside space-y-1">
-                {swissValidation.warnings.map((warning, index) => (
-                  <li key={index}>{warning}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {swissValidation.errors.length > 0 && (
-          <Alert variant="destructive">
-            <AlertDescription className="text-sm">
-              <ul className="list-disc list-inside space-y-1">
-                {swissValidation.errors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-    );
-  };
-
-  const renderWildcardSelector = () => {
-    const availableWildcards = getAvailableWildcards();
-
-    if (availableWildcards.length === 0) {
-      return null;
-    }
-
-    return (
-      <div className="space-y-3">
-        <label className="text-sm font-medium">
-          Wildcards (Optional)
-          <span className="text-xs text-muted-foreground ml-2">
-            ({availableWildcards.length} available)
-          </span>
-        </label>
-        <div className="border rounded-lg p-3 space-y-2 bg-amber-50">
-          {availableWildcards.map((wildcard) => (
-            <div key={wildcard.id} className="flex items-center space-x-2">
-              <Checkbox
-                id={wildcard.id}
-                checked={selectedWildcards.includes(wildcard.id)}
-                onCheckedChange={() => handleWildcardToggle(wildcard.id)}
-              />
-              <label
-                htmlFor={wildcard.id}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-              >
-                {wildcard.name}
-                <Badge variant="outline" className="ml-2 text-xs bg-amber-100">
-                  WC
-                </Badge>
-              </label>
-            </div>
-          ))}
-        </div>
-        {selectedWildcards.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            {selectedWildcards.length} wildcard(s) selected. Total participants:{" "}
-            {totalParticipantCount}
-          </p>
-        )}
-      </div>
-    );
   };
 
   const handleCustomStageSubmit = (e: React.FormEvent) => {
@@ -844,119 +575,6 @@ const TrackView: React.FC<TrackViewProps> = ({
     setSelectedWildcards([]);
   };
 
-  const renderBracketView = (stage: Stage, poolIndex: number) => {
-    const pool = stage.pools[poolIndex];
-    if (!pool) return null;
-
-    const service = getFormatByName(stage.format);
-
-    let totalRounds = 0;
-    if (
-      stage.format === "single-elimination" &&
-      service instanceof SingleEliminationService
-    ) {
-      totalRounds = service.calculateRoundsNeeded(
-        stage.participants.length,
-        stage.qualifiers
-      );
-    } else if (
-      stage.format === "double-elimination" &&
-      service instanceof DoubleEliminationService
-    ) {
-      totalRounds = pool.rounds.length;
-    }
-
-    return (
-      <div className="space-y-3">
-        {pool.rounds.map((round, roundIndex) => (
-          <div key={round.id} className="space-y-2">
-            <h4 className="font-medium text-sm">
-              {stage.format === "single-elimination"
-                ? (service as SingleEliminationService).getRoundName(
-                    roundIndex + 1,
-                    totalRounds,
-                    stage.qualifiers
-                  )
-                : stage.format === "double-elimination"
-                ? (service as DoubleEliminationService).getRoundName(
-                    roundIndex + 1,
-                    totalRounds,
-                    pool.id === "pool-winners"
-                      ? "winners"
-                      : pool.id === "pool-losers"
-                      ? "losers"
-                      : "grand-final"
-                  )
-                : `Round ${roundIndex + 1}`}
-            </h4>
-
-            {round.byes.length > 0 && (
-              <div className="text-xs text-muted-foreground">
-                <p className="flex flex-wrap gap-1">
-                  Byes:{" "}
-                  {round.byes.map((bye, idx) => (
-                    <span
-                      key={bye.id}
-                      className="inline-flex items-center gap-1"
-                    >
-                      {bye.name}
-                      {bye.type === "wildcard" && (
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-amber-100 px-1 py-0"
-                        >
-                          WC
-                        </Badge>
-                      )}
-                      {idx < round.byes.length - 1 && ","}
-                    </span>
-                  ))}
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {round.matches.map((match) => (
-                <div key={match.id} className="border rounded p-2 text-xs">
-                  <div className="flex justify-between items-center gap-2">
-                    <span className="truncate flex items-center gap-1">
-                      {match.party1?.name || "TBD"}
-                      {match.party1?.type === "wildcard" && (
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-amber-100 px-1 py-0"
-                        >
-                          WC
-                        </Badge>
-                      )}
-                    </span>
-                    <span className="text-muted-foreground">vs</span>
-                    <span className="truncate flex items-center gap-1">
-                      {match.party2?.name || "TBD"}
-                      {match.party2?.type === "wildcard" && (
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-amber-100 px-1 py-0"
-                        >
-                          WC
-                        </Badge>
-                      )}
-                    </span>
-                  </div>
-                  {match.winner && (
-                    <div className="text-center mt-1 text-green-600 font-medium">
-                      Winner: {match.winner.name}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   if (
     selectedTrack.stages.length === 0 &&
     configurationMode !== "custom" &&
@@ -983,8 +601,26 @@ const TrackView: React.FC<TrackViewProps> = ({
           Back to Configuration Options
         </Button>
 
-        {configurationMode === "single-stage" && <SingleStageForm />}
-        {configurationMode === "multi-stage" && <MultiStageForm />}
+        {configurationMode === "single-stage" && (
+          <SingleStageForm
+            participantCount={selectedTrack.participants.length}
+            singleStageFormat={singleStageFormat}
+            setSingleStageFormat={setSingleStageFormat}
+            onSubmit={handleSingleStageSubmit}
+            onCancel={() => setShowPresetForm(false)}
+          />
+        )}
+        {configurationMode === "multi-stage" && (
+          <MultiStageForm
+            participantCount={selectedTrack.participants.length}
+            multiStageFormat1={multiStageFormat1}
+            setMultiStageFormat1={setMultiStageFormat1}
+            multiStageFormat2={multiStageFormat2}
+            setMultiStageFormat2={setMultiStageFormat2}
+            onSubmit={handleMultiStageSubmit}
+            onCancel={() => setShowPresetForm(false)}
+          />
+        )}
       </div>
     );
   }
@@ -1067,6 +703,138 @@ const TrackView: React.FC<TrackViewProps> = ({
               </Card>
             )}
 
+            {(stage.format === "americano" || stage.format === "mexicano") &&
+              stage.pools.length > 0 && (
+                <Card className="bg-green-50">
+                  <CardHeader>
+                    <CardTitle className="text-md">
+                      {stage.format === "americano" ? "Americano" : "Mexicano"} Format ({stage.pools.length} pool{stage.pools.length !== 1 ? 's' : ''})
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {stage.format === "americano" 
+                        ? "Players rotate partners each round in a round-robin style tournament."
+                        : "Players form teams dynamically based on standings after the first round."}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {stage.pools.map((pool) => (
+                      <div
+                        key={pool.id}
+                        className="border rounded-lg p-3 bg-white"
+                      >
+                        <h4 className="font-medium text-sm mb-2">
+                          {pool.name} ({pool.parties.length} participants)
+                        </h4>
+
+                        <div className="text-xs text-muted-foreground mb-3">
+                          <p className="flex flex-wrap gap-1">
+                            Participants:{" "}
+                            {pool.parties.map((p, idx) => (
+                              <span
+                                key={p.id}
+                                className="inline-flex items-center gap-1"
+                              >
+                                {p.name}
+                                {p.type === "wildcard" && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs bg-amber-100 px-1 py-0"
+                                  >
+                                    WC
+                                  </Badge>
+                                )}
+                                {idx < pool.parties.length - 1 && ", "}
+                              </span>
+                            ))}
+                          </p>
+                        </div>
+
+                        <div className="space-y-3">
+                          {pool.rounds.map((round, roundIndex) => (
+                            <div key={round.id} className="border rounded-lg p-2 bg-gray-50">
+                              <h5 className="font-medium text-xs mb-2">
+                                Round {roundIndex + 1}
+                                
+                                
+                              </h5>
+
+                              {round.byes.length > 0 && (
+                                <div className="text-xs text-orange-600 mb-2">
+                                  <p className="flex flex-wrap gap-1">
+                                    Bye:{" "}
+                                    {round.byes.map((bye, idx) => (
+                                      <span
+                                        key={bye.id}
+                                        className="inline-flex items-center gap-1"
+                                      >
+                                        {bye.name}
+                                        {bye.type === "wildcard" && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs bg-amber-100 px-1 py-0"
+                                          >
+                                            WC
+                                          </Badge>
+                                        )}
+                                        {idx < round.byes.length - 1 && ","}
+                                      </span>
+                                    ))}
+                                  </p>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {round.matches.map((match) => (
+                                  <div
+                                    key={match.id}
+                                    className="border rounded p-2 text-xs bg-white"
+                                  >
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-medium text-muted-foreground">Team 1:</span>
+                                        {match.party1?.type === "team" && (
+                                          <div className="flex flex-wrap gap-1 text-xs">
+                                            {(match.party1 as any).members?.map((member: any, idx: number) => (
+                                              <span key={member.id}>
+                                                {member.name}
+                                                {idx === 0 && " & "}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-center text-muted-foreground text-xs">vs</div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-medium text-muted-foreground">Team 2:</span>
+                                        {match.party2?.type === "team" && (
+                                          <div className="flex flex-wrap gap-1 text-xs">
+                                            {(match.party2 as any).members?.map((member: any, idx: number) => (
+                                              <span key={member.id}>
+                                                {member.name}
+                                                {idx === 0 && " & "}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {match.winner && (
+                                      <div className="text-center mt-1 text-green-600 font-medium text-xs">
+                                        Winner: {match.winner.name}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
             {(stage.format === "single-elimination" ||
               stage.format === "double-elimination") &&
               stage.pools.length > 0 && (
@@ -1079,7 +847,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {renderBracketView(stage, 0)}
+                        <BracketView stage={stage} poolIndex={0} />
                       </CardContent>
                     </Card>
                   )}
@@ -1093,7 +861,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                          {renderBracketView(stage, 0)}
+                          <BracketView stage={stage} poolIndex={0} />
                         </CardContent>
                       </Card>
 
@@ -1104,7 +872,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                          {renderBracketView(stage, 1)}
+                          <BracketView stage={stage} poolIndex={1} />
                         </CardContent>
                       </Card>
 
@@ -1113,7 +881,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                           <CardTitle className="text-md">Grand Final</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                          {renderBracketView(stage, 2)}
+                          <BracketView stage={stage} poolIndex={2} />
                         </CardContent>
                       </Card>
                     </>
@@ -1145,14 +913,7 @@ const TrackView: React.FC<TrackViewProps> = ({
                             Seeded Pairing
                           </Badge>
                         )}
-                        {roundIndex > 0 && (
-                          <Badge
-                            variant="outline"
-                            className="ml-2 text-xs bg-purple-100"
-                          >
-                            By Standings
-                          </Badge>
-                        )}
+                       
                       </h4>
 
                       {round.byes.length > 0 && (
@@ -1398,12 +1159,24 @@ const TrackView: React.FC<TrackViewProps> = ({
                         Double Elimination
                       </SelectItem>
                       <SelectItem value="swiss">Swiss System</SelectItem>
+                      <SelectItem value="americano">Americano</SelectItem>
+                      <SelectItem value="mexicano">Mexicano</SelectItem>
                     </SelectContent>
                   </Select>
                   {format === "double-elimination" && (
                     <p className="text-xs text-amber-600">
                       Note: Double elimination must be the final stage
                       (qualifies 1 winner only)
+                    </p>
+                  )}
+                  {format === "americano" && (
+                    <p className="text-xs text-green-600">
+                      Note: Americano must be the final stage. Players rotate partners each round.
+                    </p>
+                  )}
+                  {format === "mexicano" && (
+                    <p className="text-xs text-green-600">
+                      Note: Mexicano must be the final stage. Requires a multiple of 4 players.
                     </p>
                   )}
                   {format === "swiss" && (
@@ -1414,11 +1187,39 @@ const TrackView: React.FC<TrackViewProps> = ({
                   )}
                 </div>
 
-                {renderWildcardSelector()}
+                <WildcardSelector
+                  availableWildcards={getAvailableWildcards()}
+                  selectedWildcards={selectedWildcards}
+                  onWildcardToggle={handleWildcardToggle}
+                  totalParticipantCount={totalParticipantCount}
+                />
 
-                {renderPoolConfiguration()}
+                <PoolConfiguration
+                  format={format}
+                  poolCount={poolCount}
+                  maxPools={format === "round-robin" 
+                    ? roundRobinService.getMaxPoolCount(totalParticipantCount)
+                    : format === "americano"
+                    ? americanoService.getMaxPoolCount(totalParticipantCount)
+                    : 0}
+                  onPoolCountChange={handlePoolCountChange}
+                  poolDistribution={poolDistribution}
+                  poolValidation={poolValidation}
+                />
 
-                {renderSwissConfiguration()}
+                <SwissConfiguration
+                  format={format}
+                  roundCount={roundCount}
+                  onRoundCountChange={setRoundCount}
+                  defaultRounds={swissService.getDefaultRoundCount(
+                    totalParticipantCount
+                  )}
+                  maxRounds={swissService.getMaxRoundCount(
+                    totalParticipantCount
+                  )}
+                  minRounds={swissService.getMinRoundCount()}
+                  swissValidation={swissValidation}
+                />
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
@@ -1433,13 +1234,24 @@ const TrackView: React.FC<TrackViewProps> = ({
                         (Fixed at 1 - final stage)
                       </span>
                     )}
+                    {(format === "americano" || format === "mexicano") && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (Fixed at 1 - final stage)
+                      </span>
+                    )}
                     {format === "swiss" && (
                       <span className="text-xs text-muted-foreground ml-2">
                         (Top players advance)
                       </span>
                     )}
                   </label>
-                  {renderQualifierInput()}
+                  <QualifierInput
+                    format={format}
+                    qualifiers={qualifiers}
+                    totalParticipantCount={totalParticipantCount}
+                    onQualifiersChange={handleQualifiersChange}
+                    validSingleEliminationOptions={getValidSingleEliminationQualifiers()}
+                  />
                   {error && <p className="text-sm text-red-500">{error}</p>}
                   {format === "round-robin" && (
                     <p className="text-xs text-muted-foreground">
@@ -1493,10 +1305,14 @@ const TrackView: React.FC<TrackViewProps> = ({
             ) : (
               <div className="text-sm text-muted-foreground">
                 {selectedTrack.stages.length > 0 &&
+                (selectedTrack.stages[selectedTrack.stages.length - 1]
+                  ?.format === "double-elimination" ||
                 selectedTrack.stages[selectedTrack.stages.length - 1]
-                  ?.format === "double-elimination" ? (
+                  ?.format === "americano" ||
+                selectedTrack.stages[selectedTrack.stages.length - 1]
+                  ?.format === "mexicano") ? (
                   <p>
-                    Cannot add more stages - double elimination is the final
+                    Cannot add more stages - {selectedTrack.stages[selectedTrack.stages.length - 1]?.format} is the final
                     stage
                   </p>
                 ) : (

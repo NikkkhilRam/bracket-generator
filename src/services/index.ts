@@ -4,12 +4,16 @@ import { RoundRobinService } from "./round-robin.service";
 import { SingleEliminationService } from "./single-elimination.service";
 import { DoubleEliminationService } from "./double-elimination.service";
 import { SwissService } from "./swiss.service";
+import { AmericanoClassicService } from "./americano-classic.service";
+import { MexicanoClassicService } from "./mexicano-classic.service";
 
 const services: FormatService[] = [
   new RoundRobinService(),
   new SingleEliminationService(),
   new DoubleEliminationService(),
   new SwissService(),
+  new AmericanoClassicService(),
+  new MexicanoClassicService(),
 ];
 
 export const formats: Record<string, FormatService> = Object.fromEntries(
@@ -71,6 +75,18 @@ export function validateStageSequence(
     if (stage.format === "double-elimination" && i < stages.length - 1) {
       errors.push(
         `Stage ${i + 1} (${stage.name}): Double elimination must be the final stage`
+      );
+    }
+
+    if (stage.format === "americano" && i < stages.length - 1) {
+      errors.push(
+        `Stage ${i + 1} (${stage.name}): Americano must be the final stage`
+      );
+    }
+
+    if (stage.format === "mexicano" && i < stages.length - 1) {
+      errors.push(
+        `Stage ${i + 1} (${stage.name}): Mexicano must be the final stage`
       );
     }
 
