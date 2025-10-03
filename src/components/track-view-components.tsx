@@ -1,6 +1,12 @@
 import React from "react";
 import { Button } from "./ui/button";
-import { Pool, Stage, Participant, Match, Round } from "@/types/tournament.types";
+import {
+  Pool,
+  Stage,
+  Participant,
+  Match,
+  Round,
+} from "@/types/tournament.types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Input } from "@/components/ui/input";
@@ -70,8 +76,12 @@ export const SingleStageForm: React.FC<SingleStageFormProps> = ({
                 Double Elimination
               </SelectItem>
               <SelectItem value="swiss">Swiss System</SelectItem>
-              <SelectItem value="americano">Americano</SelectItem>
-              <SelectItem value="mexicano">Mexicano</SelectItem>
+              {participantCount >= 4 && participantCount % 4 === 0 && (
+                <SelectItem value="americano">Americano</SelectItem>
+              )}
+              {participantCount >= 4 && participantCount % 4 === 0 && (
+                <SelectItem value="mexicano">Mexicano</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -85,7 +95,6 @@ export const SingleStageForm: React.FC<SingleStageFormProps> = ({
     </CardContent>
   </Card>
 );
-
 interface MultiStageFormProps {
   participantCount: number;
   multiStageFormat1: MultiStageFormat;
@@ -219,8 +228,8 @@ export const PoolConfiguration: React.FC<PoolConfigurationProps> = ({
           required
         />
         <p className="text-xs text-muted-foreground">
-          {format === "americano" 
-            ? "Each pool must have at least 4 participants" 
+          {format === "americano"
+            ? "Each pool must have at least 4 participants"
             : "Each pool must have at least 2 participants"}
         </p>
       </div>
@@ -231,7 +240,8 @@ export const PoolConfiguration: React.FC<PoolConfigurationProps> = ({
           <div className="flex flex-wrap gap-2">
             {poolDistribution.map((size, index) => (
               <Badge key={index} variant="outline" className="text-xs">
-                {format === "americano" ? "Pool" : "Group"} {String.fromCharCode(65 + index)}: {size} participants
+                {format === "americano" ? "Pool" : "Group"}{" "}
+                {String.fromCharCode(65 + index)}: {size} participants
               </Badge>
             ))}
           </div>
@@ -429,7 +439,11 @@ export const QualifierInput: React.FC<QualifierInputProps> = ({
     );
   }
 
-  if (format === "double-elimination" || format === "americano" || format === "mexicano") {
+  if (
+    format === "double-elimination" ||
+    format === "americano" ||
+    format === "mexicano"
+  ) {
     return (
       <Input
         type="number"

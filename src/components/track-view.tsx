@@ -34,7 +34,7 @@ import {
   WildcardSelector,
   QualifierInput,
   BracketView,
-} from "./track-view-components"
+} from "./track-view-components";
 import { AmericanoClassicService } from "@/services/americano-classic.service";
 import { MexicanoClassicService } from "@/services/mexicano-classic.service";
 
@@ -139,11 +139,17 @@ const TrackView: React.FC<TrackViewProps> = ({
         setError(validation.valid ? null : validation.errors[0]);
       } else if (format === "americano") {
         const service = getFormatByName(format)!;
-        const errorMsg = service.getErrorMessage(qualifiers, totalParticipantCount);
+        const errorMsg = service.getErrorMessage(
+          qualifiers,
+          totalParticipantCount
+        );
         setError(errorMsg);
       } else if (format === "mexicano") {
         const service = getFormatByName(format)!;
-        const errorMsg = service.getErrorMessage(qualifiers, totalParticipantCount);
+        const errorMsg = service.getErrorMessage(
+          qualifiers,
+          totalParticipantCount
+        );
         setError(errorMsg);
       } else if (format === "single-elimination") {
         const service = getFormatByName(format)!;
@@ -230,7 +236,10 @@ const TrackView: React.FC<TrackViewProps> = ({
       pools: [],
       wildcards: wildcardParticipants,
       roundCount: stageFormat === "swiss" ? stageRoundCount : undefined,
-      poolCount: stageFormat === "round-robin" || stageFormat === "americano" ? stagePoolCount : undefined,
+      poolCount:
+        stageFormat === "round-robin" || stageFormat === "americano"
+          ? stagePoolCount
+          : undefined,
     };
 
     let pools: Pool[] = [];
@@ -299,7 +308,12 @@ const TrackView: React.FC<TrackViewProps> = ({
     const finalFormat = singleStageFormat;
 
     const newStageName = `${finalFormat.replace("-", " ")} Final`;
-    const finalQualifiers = finalFormat === "double-elimination" || finalFormat === "americano" || finalFormat === "mexicano" ? 1 : 0;
+    const finalQualifiers =
+      finalFormat === "double-elimination" ||
+      finalFormat === "americano" ||
+      finalFormat === "mexicano"
+        ? 1
+        : 0;
 
     if (finalFormat === "double-elimination" && allParticipants.length < 2) {
       alert("Double Elimination requires at least 2 participants.");
@@ -352,7 +366,9 @@ const TrackView: React.FC<TrackViewProps> = ({
         defaultRounds
       );
     } else if (finalFormat === "americano") {
-      const defaultPools = americanoService.getMaxPoolCount(allParticipants.length);
+      const defaultPools = americanoService.getMaxPoolCount(
+        allParticipants.length
+      );
       stage = generateStage(
         newStageName,
         finalFormat,
@@ -508,7 +524,11 @@ const TrackView: React.FC<TrackViewProps> = ({
 
     const lastStage = selectedTrack.stages[selectedTrack.stages.length - 1];
 
-    if (lastStage.format === "double-elimination" || lastStage.format === "americano" || lastStage.format === "mexicano") {
+    if (
+      lastStage.format === "double-elimination" ||
+      lastStage.format === "americano" ||
+      lastStage.format === "mexicano"
+    ) {
       return false;
     }
 
@@ -708,10 +728,12 @@ const TrackView: React.FC<TrackViewProps> = ({
                 <Card className="bg-green-50">
                   <CardHeader>
                     <CardTitle className="text-md">
-                      {stage.format === "americano" ? "Americano" : "Mexicano"} Format ({stage.pools.length} pool{stage.pools.length !== 1 ? 's' : ''})
+                      {stage.format === "americano" ? "Americano" : "Mexicano"}{" "}
+                      Format ({stage.pools.length} pool
+                      {stage.pools.length !== 1 ? "s" : ""})
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      {stage.format === "americano" 
+                      {stage.format === "americano"
                         ? "Players rotate partners each round in a round-robin style tournament."
                         : "Players form teams dynamically based on standings after the first round."}
                     </p>
@@ -751,11 +773,12 @@ const TrackView: React.FC<TrackViewProps> = ({
 
                         <div className="space-y-3">
                           {pool.rounds.map((round, roundIndex) => (
-                            <div key={round.id} className="border rounded-lg p-2 bg-gray-50">
+                            <div
+                              key={round.id}
+                              className="border rounded-lg p-2 bg-gray-50"
+                            >
                               <h5 className="font-medium text-xs mb-2">
                                 Round {roundIndex + 1}
-                                
-                                
                               </h5>
 
                               {round.byes.length > 0 && (
@@ -791,29 +814,39 @@ const TrackView: React.FC<TrackViewProps> = ({
                                   >
                                     <div className="space-y-1">
                                       <div className="flex items-center justify-between">
-                                        <span className="text-xs font-medium text-muted-foreground">Team 1:</span>
+                                        <span className="text-xs font-medium text-muted-foreground">
+                                          Team 1:
+                                        </span>
                                         {match.party1?.type === "team" && (
                                           <div className="flex flex-wrap gap-1 text-xs">
-                                            {(match.party1 as any).members?.map((member: any, idx: number) => (
-                                              <span key={member.id}>
-                                                {member.name}
-                                                {idx === 0 && " & "}
-                                              </span>
-                                            ))}
+                                            {(match.party1 as any).members?.map(
+                                              (member: any, idx: number) => (
+                                                <span key={member.id}>
+                                                  {member.name}
+                                                  {idx === 0 && " & "}
+                                                </span>
+                                              )
+                                            )}
                                           </div>
                                         )}
                                       </div>
-                                      <div className="text-center text-muted-foreground text-xs">vs</div>
+                                      <div className="text-center text-muted-foreground text-xs">
+                                        vs
+                                      </div>
                                       <div className="flex items-center justify-between">
-                                        <span className="text-xs font-medium text-muted-foreground">Team 2:</span>
+                                        <span className="text-xs font-medium text-muted-foreground">
+                                          Team 2:
+                                        </span>
                                         {match.party2?.type === "team" && (
                                           <div className="flex flex-wrap gap-1 text-xs">
-                                            {(match.party2 as any).members?.map((member: any, idx: number) => (
-                                              <span key={member.id}>
-                                                {member.name}
-                                                {idx === 0 && " & "}
-                                              </span>
-                                            ))}
+                                            {(match.party2 as any).members?.map(
+                                              (member: any, idx: number) => (
+                                                <span key={member.id}>
+                                                  {member.name}
+                                                  {idx === 0 && " & "}
+                                                </span>
+                                              )
+                                            )}
                                           </div>
                                         )}
                                       </div>
@@ -913,7 +946,6 @@ const TrackView: React.FC<TrackViewProps> = ({
                             Seeded Pairing
                           </Badge>
                         )}
-                       
                       </h4>
 
                       {round.byes.length > 0 && (
@@ -1159,8 +1191,13 @@ const TrackView: React.FC<TrackViewProps> = ({
                         Double Elimination
                       </SelectItem>
                       <SelectItem value="swiss">Swiss System</SelectItem>
-                      <SelectItem value="americano">Americano</SelectItem>
-                      <SelectItem value="mexicano">Mexicano</SelectItem>
+                      {totalParticipantCount >= 4 && totalParticipantCount % 4 === 0 && (
+                        <SelectItem value="americano">Americano</SelectItem>
+                      )}
+                      {totalParticipantCount >= 4 &&
+                        totalParticipantCount % 4 === 0 && (
+                          <SelectItem value="mexicano">Mexicano</SelectItem>
+                        )}
                     </SelectContent>
                   </Select>
                   {format === "double-elimination" && (
@@ -1171,12 +1208,14 @@ const TrackView: React.FC<TrackViewProps> = ({
                   )}
                   {format === "americano" && (
                     <p className="text-xs text-green-600">
-                      Note: Americano must be the final stage. Players rotate partners each round.
+                      Note: Americano must be the final stage. Players rotate
+                      partners each round.
                     </p>
                   )}
                   {format === "mexicano" && (
                     <p className="text-xs text-green-600">
-                      Note: Mexicano must be the final stage. Requires a multiple of 4 players.
+                      Note: Mexicano must be the final stage. Requires a
+                      multiple of 4 players.
                     </p>
                   )}
                   {format === "swiss" && (
@@ -1197,11 +1236,13 @@ const TrackView: React.FC<TrackViewProps> = ({
                 <PoolConfiguration
                   format={format}
                   poolCount={poolCount}
-                  maxPools={format === "round-robin" 
-                    ? roundRobinService.getMaxPoolCount(totalParticipantCount)
-                    : format === "americano"
-                    ? americanoService.getMaxPoolCount(totalParticipantCount)
-                    : 0}
+                  maxPools={
+                    format === "round-robin"
+                      ? roundRobinService.getMaxPoolCount(totalParticipantCount)
+                      : format === "americano"
+                      ? americanoService.getMaxPoolCount(totalParticipantCount)
+                      : 0
+                  }
                   onPoolCountChange={handlePoolCountChange}
                   poolDistribution={poolDistribution}
                   poolValidation={poolValidation}
@@ -1307,13 +1348,17 @@ const TrackView: React.FC<TrackViewProps> = ({
                 {selectedTrack.stages.length > 0 &&
                 (selectedTrack.stages[selectedTrack.stages.length - 1]
                   ?.format === "double-elimination" ||
-                selectedTrack.stages[selectedTrack.stages.length - 1]
-                  ?.format === "americano" ||
-                selectedTrack.stages[selectedTrack.stages.length - 1]
-                  ?.format === "mexicano") ? (
+                  selectedTrack.stages[selectedTrack.stages.length - 1]
+                    ?.format === "americano" ||
+                  selectedTrack.stages[selectedTrack.stages.length - 1]
+                    ?.format === "mexicano") ? (
                   <p>
-                    Cannot add more stages - {selectedTrack.stages[selectedTrack.stages.length - 1]?.format} is the final
-                    stage
+                    Cannot add more stages -{" "}
+                    {
+                      selectedTrack.stages[selectedTrack.stages.length - 1]
+                        ?.format
+                    }{" "}
+                    is the final stage
                   </p>
                 ) : (
                   <p>

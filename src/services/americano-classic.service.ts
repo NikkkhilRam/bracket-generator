@@ -12,7 +12,7 @@ export class AmericanoClassicService implements FormatService {
   name = "americano";
 
   validateQualifiers(qualifiers: number, participants: number): boolean {
-    return qualifiers >= 0 && qualifiers <= participants;
+    return qualifiers >= 0 && qualifiers <= participants && participants % 4 !== 0;
   }
 
   getErrorMessage(qualifiers: number, participants: number): string | null {
